@@ -1,0 +1,58 @@
+import java.util.Properties
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.google.services)
+}
+
+// release 서명 정보는 저장소에 올리지 않는 keystore.properties 에서 읽는다.
+val keystoreProperties = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
+}
+
+android {
+    namespace = "com.EOKYEONGBIN.pleosfinder.phone"
+    compileSdk {
+        version = release(37)
+    }
+
+    defaultConfig {
+        applicationId = "com.EOKYEONGBIN.pleosfinder.phone"
+        minSdk = 28
+        targetSdk = 37
+        versionCode = 1
+        versionName = "1.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            if (!keystoreProperties.isEmpty) {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            optimization {
+                enable = true
+                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.material)
+    implementation(project(":core"))
+}
