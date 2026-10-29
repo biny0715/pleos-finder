@@ -33,7 +33,10 @@
                 android:value="true" />
         </activity>
 
-        <!-- Gleo AI 음성 명령 수신. 함수 이름은 assets/schema.json 의 actionCalls 와 같아야 한다. -->
+        <!--
+          Gleo AI 음성 명령 수신. 함수 이름은 assets/schema.json 의 actionCalls 와 같아야 한다.
+          문서 예시는 action = 함수 이름이지만, 에뮬레이터의 Gleo(ambientai 4.2)는 "패키지 이름.함수 이름"으로 보낸다. 둘 다 받는다.
+        -->
         <receiver
             android:name=".gleo.GleoActionReceiver"
             android:exported="true">
@@ -41,6 +44,9 @@
                 <action android:name="PICKUP" />
                 <action android:name="SHARE_LOCATION" />
                 <action android:name="STOP_LOCATION_SHARING" />
+                <action android:name="com.EOKYEONGBIN.pleosfinder.PICKUP" />
+                <action android:name="com.EOKYEONGBIN.pleosfinder.SHARE_LOCATION" />
+                <action android:name="com.EOKYEONGBIN.pleosfinder.STOP_LOCATION_SHARING" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>

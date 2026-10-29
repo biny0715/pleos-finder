@@ -46,13 +46,13 @@
 | `SHARE_LOCATION(targetName, durationMinutes, untilEndOfToday)` | "박지훈한테 1시간만 위치 공유해줘", "주말 캠핑 그룹에 2시간만 공유해줘" | 사람이면 차량끼리 서로 공유, 그룹이면 그룹에 일시적 공유(30분 단위, 최대 24시간) |
 | `STOP_LOCATION_SHARING(targetName, category)` | "친구 목록 중에 위치 공유된 것 모두 꺼줘" | 한 사람·그룹, 또는 가족·친구·그룹·전체에서 내가 켠 공유를 끔 |
 
-- 세 기능 모두 화면 없이 처리하는 `service` 방식입니다(`gleo/GleoActionReceiver.kt`). 결과는 Gleo Callback 규격(`success` / `asking` / `fail`)으로 7초 안에 돌려줍니다.
+- 세 기능 모두 화면 없이 처리하는 `service` 방식입니다(`gleo/GleoActionReceiver.kt`). Pleos 문서 예시는 인텐트 action이 함수 이름(`PICKUP`)이지만, 에뮬레이터의 Gleo AI(ambientai 4.2)는 `com.EOKYEONGBIN.pleosfinder.PICKUP`처럼 패키지 이름을 붙여 보내므로 두 형식을 모두 받습니다. 결과는 Gleo Callback 규격(`success` / `asking` / `fail`)으로 7초 안에 돌려줍니다.
 - 이름은 운전자가 부르는 호칭(와이프·남편·아들)과 계정 이름으로 찾고, 모르는 이름이나 빠진 시간은 `asking`으로 되묻습니다.
 - 설치 직후에는 Android가 앱을 '중지됨' 상태로 두어 Gleo 호출을 받지 못하므로, 차량 앱을 한 번 열어 주세요.
 - 음성 없이 시험하려면 Gleo가 보내는 것과 같은 신호를 보냅니다.
   ```
-  adb -s <Pleos 에뮬레이터> shell am broadcast --user current -p com.EOKYEONGBIN.pleosfinder -a PICKUP --es ACTION_PARAM '{"action":"start","memberName":"와이프"}'
-  adb -s <Pleos 에뮬레이터> shell am broadcast --user current -p com.EOKYEONGBIN.pleosfinder -a SHARE_LOCATION --es ACTION_PARAM '{"targetName":"주말 캠핑","durationMinutes":120}'
+  adb -s <Pleos 에뮬레이터> shell am broadcast --user current -p com.EOKYEONGBIN.pleosfinder -a com.EOKYEONGBIN.pleosfinder.PICKUP --es ACTION_PARAM '{"action":"start","memberName":"와이프"}'
+  adb -s <Pleos 에뮬레이터> shell am broadcast --user current -p com.EOKYEONGBIN.pleosfinder -a com.EOKYEONGBIN.pleosfinder.SHARE_LOCATION --es ACTION_PARAM '{"targetName":"주말 캠핑","durationMinutes":120}'
   ```
 
 ## 디자인

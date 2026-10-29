@@ -27,12 +27,13 @@ import java.util.Locale
  * - PICKUP(action = start | stop | status, memberName): "와이프 픽업 가줘", "픽업 그만", "아들 어디쯤이야?"
  * - SHARE_LOCATION(targetName, durationMinutes, untilEndOfToday): "박지훈한테 1시간만 위치 공유해줘", "주말 캠핑 그룹에 2시간만 공유해줘"
  * - STOP_LOCATION_SHARING(targetName, category): "친구 목록 중에 위치 공유된 것 모두 꺼줘"
- * Gleo 는 sendBroadcast 로 action = 함수 이름, ACTION_PARAM = 파라미터 JSON 을 보낸다.
+ * Gleo 는 sendBroadcast 로 action = "패키지 이름.함수 이름", ACTION_PARAM = 파라미터 JSON 을 보낸다.
  */
 class GleoActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val action = intent.action ?: return
+        // Gleo 는 "패키지 이름.함수 이름"으로 보낸다(문서 예시는 함수 이름만). 함수 이름만 남긴다.
+        val action = intent.action?.removePrefix("${context.packageName}.") ?: return
         val params = parseParams(intent)
         Log.d(TAG, "action $action params $params")
         val session = (context.applicationContext as PleosFinderApp).session
