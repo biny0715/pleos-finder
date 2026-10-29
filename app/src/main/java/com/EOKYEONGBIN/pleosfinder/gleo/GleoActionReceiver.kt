@@ -46,7 +46,7 @@ class GleoActionReceiver : BroadcastReceiver() {
         val reply = { status: Status, message: String -> GleoResponder.respond(context, START_PICKUP, status, message) }
         val state = session.pickupState
         when {
-            !session.isJoined(member) -> reply(Status.FAIL, "${member.name} has not joined your family group yet.")
+            !session.isConnected(member) -> reply(Status.FAIL, "${member.name} is not in your family or friends yet.")
             state is PickupState.OnTheWay && state.target == member ->
                 reply(Status.SUCCESS, "You are already on the way to pick up ${member.name}.")
             state is PickupState.WaitingForAcceptance && state.target == member ->
@@ -96,7 +96,7 @@ class GleoActionReceiver : BroadcastReceiver() {
             )
         }
         when {
-            !session.isJoined(member) -> reply(Status.FAIL, "${member.name} has not joined your family group yet.", null)
+            !session.isConnected(member) -> reply(Status.FAIL, "${member.name} is not in your family or friends yet.", null)
             state is PickupState.OnTheWay && state.target == member && state.remainDistanceMeters != null && state.remainTimeSeconds != null -> {
                 val km = "%.1f".format(state.remainDistanceMeters / 1000.0)
                 val minutes = (state.remainTimeSeconds + 59) / 60
@@ -115,13 +115,13 @@ class GleoActionReceiver : BroadcastReceiver() {
     /** 이름으로 가족 구성원을 찾는다. 이름이 없거나 모르면 asking 으로 되묻고 null 을 돌려준다. */
     private fun resolveMember(context: Context, session: VehicleSession, functionName: String, params: JSONObject): Member? {
         val spoken = params.optString(PARAM_MEMBER_NAME).trim().lowercase()
-        val names = session.family.joinToString(", ") { it.name }
-        val member = session.family.firstOrNull { member ->
+        val names = session.pickupCandidates().joinToString(", ") { it.name }
+        val member = session.pickupCandidates().firstOrNull { member ->
             spoken.isNotEmpty() && (aliasesOf(member) + member.name.lowercase()).any { spoken == it || spoken.contains(it) }
-        } ?: session.family.singleOrNull()?.takeIf { spoken in GENERIC_CHILD_WORDS }
+        } ?: session.pickupCandidates().singleOrNull()?.takeIf { spoken in GENERIC_CHILD_WORDS }
         if (member == null) {
-            val message = if (spoken.isEmpty()) "Who should I look for? Your family group has: $names."
-            else "I couldn't find '$spoken' in your family group. Your family group has: $names."
+            val message = if (spoken.isEmpty()) "Who should I look for? People you can pick up: $names."
+            else "I couldn't find '$spoken' in your family or friends. People you can pick up: $names."
             GleoResponder.respond(context, functionName, Status.ASKING, message)
         }
         return member

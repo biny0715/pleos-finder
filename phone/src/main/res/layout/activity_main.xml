@@ -213,49 +213,23 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 내 위치 공유 설정 -->
+            <!-- 내 위치 공유 설정: 연결된 상대별 -->
             <LinearLayout
                 style="@style/Widget.Pleos.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
                 <TextView
-                    android:id="@+id/permissionTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.Pleos.Label" />
+                    android:text="@string/section_my_sharing"
+                    android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
 
-                <RadioGroup
-                    android:id="@+id/permissionGroup"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/pleos_segment_height"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/pleos_bg_segment_container"
-                    android:orientation="horizontal"
-                    android:padding="@dimen/pleos_segment_inset">
-
-                    <RadioButton
-                        android:id="@+id/permissionAlways"
-                        style="@style/Widget.Pleos.Segment"
-                        android:text="@string/permission_always" />
-
-                    <RadioButton
-                        android:id="@+id/permissionTemporary"
-                        style="@style/Widget.Pleos.Segment"
-                        android:text="@string/permission_temporary" />
-
-                    <RadioButton
-                        android:id="@+id/permissionOff"
-                        style="@style/Widget.Pleos.Segment"
-                        android:text="@string/permission_off" />
-                </RadioGroup>
-
-                <TextView
-                    android:id="@+id/permissionDetail"
+                <LinearLayout
+                    android:id="@+id/permissionList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+                    android:orientation="vertical" />
 
                 <LinearLayout
                     android:layout_width="match_parent"

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 목록 한 줄: 누르면 5% 어둡게, 펼쳐지면(activated) 옅은 면 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape><solid android:color="@color/pleos_button_basic_pressed" /><corners android:radius="@dimen/pleos_button_radius_medium" /></shape>
+    </item>
+    <item android:state_activated="true">
+        <shape><solid android:color="@color/pleos_button_basic_enabled" /><corners android:radius="@dimen/pleos_button_radius_medium" /></shape>
+    </item>
+    <item>
+        <shape><solid android:color="@android:color/transparent" /><corners android:radius="@dimen/pleos_button_radius_medium" /></shape>
+    </item>
+</selector>

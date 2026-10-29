@@ -2,9 +2,10 @@
     <string name="app_name">Finder</string>
     <string name="app_title">플레오스 Finder</string>
     <string name="account_format">%1$s · 시연용 계정</string>
-    <string name="section_invite">가족 그룹 초대</string>
+    <string name="section_invite">초대</string>
     <string name="section_request">위치 공유 요청</string>
     <string name="section_pickup">픽업</string>
+    <string name="section_my_sharing">내 위치 공유</string>
     <string name="action_accept_always">항상 허용으로 수락</string>
     <string name="action_accept_temporary">일시적 허용으로 수락 (픽업 때만)</string>
     <string name="action_decline_invite">거절</string>

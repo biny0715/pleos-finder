@@ -1,14 +1,26 @@
 <resources>
     <string name="app_name">PleosFinder</string>
     <string name="app_title">플레오스 Finder</string>
-    <string name="account_format">%1$s로 로그인됨 · 시연용 계정</string>
     <string name="section_family">가족</string>
+    <string name="section_friends">친구</string>
+    <string name="section_groups">그룹</string>
     <string name="section_pickup">픽업</string>
-    <string name="action_invite">가족 그룹에 초대</string>
-    <string name="action_invite_pending">초대 수락을 기다리는 중</string>
-    <string name="action_start_pickup">픽업 시작</string>
+    <string name="action_add_family">+ 가족 초대</string>
+    <string name="action_add_friend">+ 친구 추가</string>
+    <string name="action_add_group">+ 그룹 만들기</string>
+    <string name="action_pickup">픽업</string>
+    <string name="action_navigate_car">차로 길 안내</string>
+    <string name="action_accept">수락</string>
+    <string name="action_decline">거절</string>
     <string name="action_stop_pickup">픽업 종료</string>
     <string name="action_cancel_request">요청 취소</string>
+    <string name="action_close">닫기</string>
+    <string name="action_join_group">그룹 참여</string>
+    <string name="action_extend_30">+30분</string>
+    <string name="action_invite_from_contacts">연락처에서 초대</string>
+    <string name="permission_always">항상 허용</string>
+    <string name="permission_temporary">일시적 허용</string>
+    <string name="permission_off">끄기</string>
     <string name="label_remain_distance">남은 거리</string>
     <string name="label_remain_time">도착까지</string>
 </resources>

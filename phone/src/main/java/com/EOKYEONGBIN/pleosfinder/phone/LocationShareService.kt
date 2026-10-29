@@ -18,6 +18,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
 import com.EOKYEONGBIN.pleosfinder.core.MemberLocation
 import com.EOKYEONGBIN.pleosfinder.core.PickupStatus
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
@@ -67,7 +68,7 @@ class LocationShareService : Service(), LocationListener {
         if (subscriptions.isEmpty()) {
             val repository = FinderServices.repository
             val me = FinderServices.me
-            subscriptions += repository.observePermission(me.id, FinderServices.viewer.id, ::onPermission)
+            subscriptions += repository.observePermissions(me.id, ::onPermissions)
             subscriptions += repository.observeShareRequest(me.id, ::onShareRequest)
             subscriptions += repository.observePickupStatus(me.id, ::onPickupStatus)
         }
@@ -87,9 +88,9 @@ class LocationShareService : Service(), LocationListener {
         super.onDestroy()
     }
 
-    private fun onPermission(value: SharePermission) {
-        permission = value
-        if (value == SharePermission.OFF) {
+    private fun onPermissions(value: Map<String, SharePermission>) {
+        permissions = value
+        if (value.values.all { it == SharePermission.OFF }) {
             stopSelf()
             return
         }
@@ -107,10 +108,11 @@ class LocationShareService : Service(), LocationListener {
         refreshSharing()
     }
 
-    /** 항상 허용이거나, 일시적 허용에서 수락한 요청이 진행 중일 때만 위치를 보낸다. */
+    /** 누군가에게 항상 허용이거나, 일시적 허용 상대의 요청을 수락해 진행 중일 때만 위치를 보낸다. */
     private fun refreshSharing() {
-        val share = permission == SharePermission.ALWAYS ||
-            (permission == SharePermission.TEMPORARY && shareRequest?.isActiveShare() == true)
+        val request = shareRequest
+        val share = permissions.values.any { it == SharePermission.ALWAYS } ||
+            (request != null && request.isActiveShare() && permissions[request.requesterId] == SharePermission.TEMPORARY)
         if (share) startLocationUpdates() else stopLocationUpdates()
         isSharing = share
         notificationManager.notify(NOTIFICATION_ID, buildForegroundNotification())
@@ -200,8 +202,9 @@ class LocationShareService : Service(), LocationListener {
     }
 
     private fun buildForegroundNotification(): Notification {
-        val viewer = FinderServices.viewer.name
-        val text = if (isSharing) "${viewer}에게 내 위치를 공유하고 있어요." else "공유 요청이 오면 알려 드릴게요."
+        val viewers = permissions.filterValues { it == SharePermission.ALWAYS }.keys.map { DemoDirectory.member(it).name } +
+            listOfNotNull(shareRequest?.takeIf { it.isActiveShare() }?.requesterName)
+        val text = if (isSharing) "${viewers.distinct().joinToString(", ")}에게 내 위치를 공유하고 있어요." else "공유 요청이 오면 알려 드릴게요."
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentTitle(getString(if (isSharing) R.string.share_notification_title else R.string.standby_notification_title))
@@ -230,7 +233,8 @@ class LocationShareService : Service(), LocationListener {
             private set
         var isSharing = false
             private set
-        var permission = SharePermission.OFF
+        /** 상대(viewerId)별 내 허용 방식 */
+        var permissions: Map<String, SharePermission> = emptyMap()
             private set
         var shareRequest: ShareRequest? = null
             private set

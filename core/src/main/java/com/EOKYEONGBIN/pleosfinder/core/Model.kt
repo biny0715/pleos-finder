@@ -9,27 +9,62 @@ data class MemberLocation(
     val updatedAt: Long,
 )
 
+/** 차량 위치. 누가 운전 중이었는지(driverId)를 함께 남겨, 그 운전자의 공유 설정으로만 보여 준다. */
+data class VehicleLocation(
+    val vehicleId: String,
+    val driverId: String,
+    val latitude: Double,
+    val longitude: Double,
+    val updatedAt: Long,
+)
+
 /** 내 위치를 특정 상대에게 보여줄지. 공유하는 사람이 상대별로 정한다. */
 enum class SharePermission {
     /** 요청이 오면 확인 없이 바로 공유 */
     ALWAYS,
 
-    /** 요청이 올 때마다 수락해야 공유하고, 픽업이 끝나면 공유도 끝남 */
+    /** 가족·친구: 요청 때마다 수락하고 픽업이 끝나면 종료 / 그룹: 정한 시간까지만 공유 */
     TEMPORARY,
 
     /** 공유하지 않음 */
     OFF,
 }
 
-/** 가족 그룹 초대. 초대받은 사람(memberId)이 수락하면서 SharePermission 을 고른다. */
-data class Invite(
-    val memberId: String,
+enum class Relation { FAMILY, FRIEND }
+
+enum class InviteStatus { PENDING, ACCEPTED, DECLINED }
+
+/** 1:1 연결(가족·친구). 양쪽에 같은 내용이 owner/other 만 바뀌어 저장된다. */
+data class Connection(
+    val ownerId: String,
+    val otherId: String,
+    val relation: Relation,
+    val status: InviteStatus,
     val inviterId: String,
-    val inviterName: String,
-    val status: Status,
     val updatedAt: Long,
 ) {
-    enum class Status { PENDING, ACCEPTED, DECLINED }
+    val isIncomingInvite: Boolean get() = status == InviteStatus.PENDING && inviterId != ownerId
+}
+
+/** 그룹 구성원. share 는 이 구성원이 그룹에 자기 위치(운전 중이면 차량 위치)를 보여 주는 방식이다. */
+data class GroupMember(
+    val accountId: String,
+    val status: InviteStatus,
+    val share: SharePermission,
+    /** share = TEMPORARY 일 때 공유가 끝나는 시각 */
+    val shareUntil: Long,
+) {
+    fun isSharing(now: Long = System.currentTimeMillis()): Boolean = status == InviteStatus.ACCEPTED &&
+        (share == SharePermission.ALWAYS || (share == SharePermission.TEMPORARY && now < shareUntil))
+}
+
+data class FinderGroup(
+    val id: String,
+    val name: String,
+    val ownerId: String,
+    val members: List<GroupMember>,
+) {
+    fun memberOf(accountId: String): GroupMember? = members.firstOrNull { it.accountId == accountId }
 }
 
 /** 일시적 허용 상대에게 보내는 위치 공유 요청. ownerId 는 위치를 공유할 사람. */
@@ -73,13 +108,4 @@ data class PickupStatus(
     companion object {
         const val STALE_MS = 10 * 60_000L
     }
-}
-
-/**
- * 시연용 가족 그룹. 기획상 모든 사용자는 Pleos 계정으로 로그인하지만,
- * 출품본은 차량 앱 = 아빠, 폰 앱 = 아들로 로그인되어 있다고 가정한다.
- */
-object DemoGroup {
-    val DAD = Member(id = "dad", name = "아빠")
-    val SON = Member(id = "son", name = "아들")
 }

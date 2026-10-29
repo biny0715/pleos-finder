@@ -8,23 +8,25 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 
 /**
- * Firebase Realtime Database 구현. 데이터 구조:
- *   groups/{groupId}/locations/{memberId} = { latitude, longitude, updatedAt }
- *   groups/{groupId}/invites/{memberId} = { inviterId, inviterName, status, updatedAt }
- *   groups/{groupId}/permissions/{ownerId}/{viewerId} = "ALWAYS" | "TEMPORARY" | "OFF"
- *   groups/{groupId}/shareRequests/{ownerId} = { requesterId, requesterName, state, updatedAt }
- *   groups/{groupId}/pickups/{targetMemberId} = { driverName, state, vehicleLatitude, ..., updatedAt }
- * 서버에는 구성원별 최신 값만 덮어쓰고 이동 기록은 남기지 않는다(기획서 7장 '최소 저장').
+ * Firebase Realtime Database 구현. 시연 공간(groups/demo-family) 아래 데이터 구조:
+ *   locations/{accountId} = { latitude, longitude, updatedAt }                       폰 위치
+ *   vehicleLocations/{vehicleId} = { driverId, latitude, longitude, updatedAt }      차량 위치(운전자 기준)
+ *   connections/{accountId}/{otherId} = { relation, status, inviterId, updatedAt }    가족·친구 연결
+ *   permissions/{ownerId}/{viewerId} = "ALWAYS" | "TEMPORARY" | "OFF"                 1:1 허용 방식
+ *   shareRequests/{ownerId} = { requesterId, requesterName, state, updatedAt }       일시적 허용 요청
+ *   pickups/{targetMemberId} = { driverName, state, vehicleLatitude, ..., updatedAt }
+ *   finderGroups/{groupId} = { name, ownerId, members/{accountId} = { status, share, shareUntil } }
+ * 서버에는 최신 값만 덮어쓰고 이동 기록은 남기지 않는다(기획서 7장 '최소 저장').
  */
 class FirebaseFinderRepository(
     databaseUrl: String = DATABASE_URL,
-    groupId: String = DEMO_GROUP_ID,
+    spaceId: String = DEMO_SPACE_ID,
 ) : FinderRepository {
 
-    private val group = FirebaseDatabase.getInstance(databaseUrl).reference.child("groups").child(groupId)
+    private val root = FirebaseDatabase.getInstance(databaseUrl).reference.child("groups").child(spaceId)
 
     override fun publishMemberLocation(location: MemberLocation) {
-        group.child("locations").child(location.memberId).setValue(
+        root.child("locations").child(location.memberId).setValue(
             mapOf(
                 "latitude" to location.latitude,
                 "longitude" to location.longitude,
@@ -34,58 +36,88 @@ class FirebaseFinderRepository(
     }
 
     override fun observeMemberLocation(memberId: String, onUpdate: (MemberLocation) -> Unit): Subscription =
-        observe(group.child("locations").child(memberId)) { snapshot ->
+        observe(root.child("locations").child(memberId)) { snapshot ->
             val latitude = snapshot.double("latitude") ?: return@observe
             val longitude = snapshot.double("longitude") ?: return@observe
-            onUpdate(
-                MemberLocation(
-                    memberId = memberId,
-                    latitude = latitude,
-                    longitude = longitude,
-                    updatedAt = snapshot.long("updatedAt") ?: 0L,
-                )
-            )
+            onUpdate(MemberLocation(memberId, latitude, longitude, snapshot.long("updatedAt") ?: 0L))
         }
 
-    override fun publishInvite(invite: Invite) {
-        group.child("invites").child(invite.memberId).setValue(
+    override fun publishVehicleLocation(location: VehicleLocation) {
+        root.child("vehicleLocations").child(location.vehicleId).setValue(
             mapOf(
-                "inviterId" to invite.inviterId,
-                "inviterName" to invite.inviterName,
-                "status" to invite.status.name,
-                "updatedAt" to invite.updatedAt,
+                "driverId" to location.driverId,
+                "latitude" to location.latitude,
+                "longitude" to location.longitude,
+                "updatedAt" to location.updatedAt,
             )
         )
     }
 
-    override fun observeInvite(memberId: String, onUpdate: (Invite?) -> Unit): Subscription =
-        observe(group.child("invites").child(memberId)) { snapshot ->
-            val status = snapshot.enum<Invite.Status>("status")
+    override fun observeVehicleLocations(onUpdate: (Map<String, VehicleLocation>) -> Unit): Subscription =
+        observe(root.child("vehicleLocations")) { snapshot ->
             onUpdate(
-                status?.let {
-                    Invite(
-                        memberId = memberId,
-                        inviterId = snapshot.string("inviterId"),
-                        inviterName = snapshot.string("inviterName"),
-                        status = it,
-                        updatedAt = snapshot.long("updatedAt") ?: 0L,
+                snapshot.children.mapNotNull { child ->
+                    val vehicleId = child.key ?: return@mapNotNull null
+                    val latitude = child.double("latitude") ?: return@mapNotNull null
+                    val longitude = child.double("longitude") ?: return@mapNotNull null
+                    vehicleId to VehicleLocation(vehicleId, child.string("driverId"), latitude, longitude, child.long("updatedAt") ?: 0L)
+                }.toMap()
+            )
+        }
+
+    override fun inviteConnection(inviterId: String, otherId: String, relation: Relation) {
+        writeConnectionPair(inviterId, otherId, relation, InviteStatus.PENDING, inviterId)
+    }
+
+    override fun respondConnection(ownerId: String, otherId: String, relation: Relation, inviterId: String, accept: Boolean) {
+        writeConnectionPair(ownerId, otherId, relation, if (accept) InviteStatus.ACCEPTED else InviteStatus.DECLINED, inviterId)
+    }
+
+    private fun writeConnectionPair(a: String, b: String, relation: Relation, status: InviteStatus, inviterId: String) {
+        val value = mapOf(
+            "relation" to relation.name,
+            "status" to status.name,
+            "inviterId" to inviterId,
+            "updatedAt" to System.currentTimeMillis(),
+        )
+        root.child("connections").updateChildren(mapOf("$a/$b" to value, "$b/$a" to value))
+    }
+
+    override fun observeConnections(accountId: String, onUpdate: (List<Connection>) -> Unit): Subscription =
+        observe(root.child("connections").child(accountId)) { snapshot ->
+            onUpdate(
+                snapshot.children.mapNotNull { child ->
+                    val otherId = child.key ?: return@mapNotNull null
+                    Connection(
+                        ownerId = accountId,
+                        otherId = otherId,
+                        relation = child.enum<Relation>("relation") ?: return@mapNotNull null,
+                        status = child.enum<InviteStatus>("status") ?: return@mapNotNull null,
+                        inviterId = child.string("inviterId"),
+                        updatedAt = child.long("updatedAt") ?: 0L,
                     )
                 }
             )
         }
 
     override fun setPermission(ownerId: String, viewerId: String, permission: SharePermission) {
-        group.child("permissions").child(ownerId).child(viewerId).setValue(permission.name)
+        root.child("permissions").child(ownerId).child(viewerId).setValue(permission.name)
     }
 
     override fun observePermission(ownerId: String, viewerId: String, onUpdate: (SharePermission) -> Unit): Subscription =
-        observe(group.child("permissions").child(ownerId).child(viewerId)) { snapshot ->
-            val name = snapshot.getValue(String::class.java)
-            onUpdate(SharePermission.entries.firstOrNull { it.name == name } ?: SharePermission.OFF)
+        observe(root.child("permissions").child(ownerId).child(viewerId)) { snapshot ->
+            onUpdate(permissionOf(snapshot.getValue(String::class.java)))
         }
 
+    override fun observePermissions(ownerId: String, onUpdate: (Map<String, SharePermission>) -> Unit): Subscription =
+        observe(root.child("permissions").child(ownerId)) { snapshot ->
+            onUpdate(snapshot.children.mapNotNull { child -> child.key?.let { it to permissionOf(child.getValue(String::class.java)) } }.toMap())
+        }
+
+    private fun permissionOf(name: String?) = SharePermission.entries.firstOrNull { it.name == name } ?: SharePermission.OFF
+
     override fun publishShareRequest(request: ShareRequest) {
-        group.child("shareRequests").child(request.ownerId).setValue(
+        root.child("shareRequests").child(request.ownerId).setValue(
             mapOf(
                 "requesterId" to request.requesterId,
                 "requesterName" to request.requesterName,
@@ -96,7 +128,7 @@ class FirebaseFinderRepository(
     }
 
     override fun observeShareRequest(ownerId: String, onUpdate: (ShareRequest?) -> Unit): Subscription =
-        observe(group.child("shareRequests").child(ownerId)) { snapshot ->
+        observe(root.child("shareRequests").child(ownerId)) { snapshot ->
             val state = snapshot.enum<ShareRequest.State>("state")
             onUpdate(
                 state?.let {
@@ -112,7 +144,7 @@ class FirebaseFinderRepository(
         }
 
     override fun publishPickupStatus(status: PickupStatus) {
-        group.child("pickups").child(status.targetMemberId).setValue(
+        root.child("pickups").child(status.targetMemberId).setValue(
             mapOf(
                 "driverName" to status.driverName,
                 "state" to status.state.name,
@@ -126,7 +158,7 @@ class FirebaseFinderRepository(
     }
 
     override fun observePickupStatus(memberId: String, onUpdate: (PickupStatus) -> Unit): Subscription =
-        observe(group.child("pickups").child(memberId)) { snapshot ->
+        observe(root.child("pickups").child(memberId)) { snapshot ->
             val state = snapshot.enum<PickupStatus.State>("state") ?: return@observe
             onUpdate(
                 PickupStatus(
@@ -141,6 +173,58 @@ class FirebaseFinderRepository(
                 )
             )
         }
+
+    override fun createGroup(name: String, ownerId: String): String {
+        val ref = root.child("finderGroups").push()
+        ref.setValue(
+            mapOf(
+                "name" to name,
+                "ownerId" to ownerId,
+                "members" to mapOf(ownerId to groupMemberValue(GroupMember(ownerId, InviteStatus.ACCEPTED, SharePermission.OFF, 0L))),
+            )
+        )
+        return ref.key!!
+    }
+
+    override fun inviteToGroup(groupId: String, accountId: String) {
+        setGroupMember(groupId, GroupMember(accountId, InviteStatus.PENDING, SharePermission.OFF, 0L))
+    }
+
+    override fun setGroupMember(groupId: String, member: GroupMember) {
+        root.child("finderGroups").child(groupId).child("members").child(member.accountId).setValue(groupMemberValue(member))
+    }
+
+    private fun groupMemberValue(member: GroupMember) = mapOf(
+        "status" to member.status.name,
+        "share" to member.share.name,
+        "shareUntil" to member.shareUntil,
+    )
+
+    override fun observeGroups(onUpdate: (List<FinderGroup>) -> Unit): Subscription =
+        observe(root.child("finderGroups")) { snapshot ->
+            onUpdate(
+                snapshot.children.mapNotNull { group ->
+                    val id = group.key ?: return@mapNotNull null
+                    FinderGroup(
+                        id = id,
+                        name = group.string("name"),
+                        ownerId = group.string("ownerId"),
+                        members = group.child("members").children.mapNotNull { m ->
+                            GroupMember(
+                                accountId = m.key ?: return@mapNotNull null,
+                                status = m.enum<InviteStatus>("status") ?: return@mapNotNull null,
+                                share = m.enum<SharePermission>("share") ?: SharePermission.OFF,
+                                shareUntil = m.long("shareUntil") ?: 0L,
+                            )
+                        },
+                    )
+                }
+            )
+        }
+
+    override fun resetDemo() {
+        root.setValue(DemoSeed.build(System.currentTimeMillis()))
+    }
 
     private fun observe(ref: DatabaseReference, onData: (DataSnapshot) -> Unit): Subscription {
         val listener = object : ValueEventListener {
@@ -165,6 +249,6 @@ class FirebaseFinderRepository(
     companion object {
         private const val TAG = "FinderRepository"
         const val DATABASE_URL = "https://pleos-finder-default-rtdb.asia-southeast1.firebasedatabase.app"
-        const val DEMO_GROUP_ID = "demo-family"
+        const val DEMO_SPACE_ID = "demo-family"
     }
 }

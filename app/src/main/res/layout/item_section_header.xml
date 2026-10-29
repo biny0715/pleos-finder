@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 패널 제목 + 오른쪽 추가 버튼 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="32dp"
+    android:layout_marginBottom="12dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <TextView
+        android:id="@+id/sectionTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+    <TextView
+        android:id="@+id/sectionAction"
+        android:layout_width="wrap_content"
+        android:layout_height="64dp"
+        android:background="@drawable/pleos_bg_row"
+        android:gravity="center"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:stateListAnimator="@animator/pleos_press_scale"
+        android:textAppearance="@style/TextAppearance.Pleos.Label"
+        android:textColor="@color/pleos_text_primary"
+        android:textStyle="bold" />
+</LinearLayout>
