@@ -60,8 +60,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var groupShareDetail: TextView
     private lateinit var groupExtendButton: Button
 
-    /** 펼쳐진 목록 항목(상대 id) */
-    private var expandedId: String? = null
+    /** 선택한 목록 항목(상대 id). 선택한 줄의 오른쪽에 버튼이 나타난다. */
+    private var selectedId: String? = null
 
     /** 오른쪽에 열린 그룹 */
     private var openGroupId: String? = null
@@ -197,13 +197,13 @@ class MainActivity : AppCompatActivity() {
             val row = contactRow(card, contact.member.name, contact.hasFinderPhone, contact.vehicles.isNotEmpty())
             val (status, dot) = contactStatus(contact)
             row.status(status, dot)
-            val expanded = expandedId == contact.member.id
-            row.view.isActivated = expanded
+            val selected = selectedId == contact.member.id
+            row.view.isActivated = selected
             row.view.setOnClickListener {
-                expandedId = if (expanded) null else contact.member.id
+                selectedId = if (selected) null else contact.member.id
                 render()
             }
-            if (expanded) addContactActions(row.actions, contact)
+            if (selected) addContactActions(row.actions, contact)
         }
     }
 
@@ -349,7 +349,7 @@ class MainActivity : AppCompatActivity() {
         val members = group.members.filter { it.status != InviteStatus.DECLINED }
             .sortedWith(compareBy({ it.accountId != session.me.id }, { it.status != InviteStatus.ACCEPTED }))
         for (m in members) {
-            val member = DemoDirectory.member(m.accountId)
+            val member = session.person(m.accountId)
             val isMe = m.accountId == session.me.id
             val vehicles = DemoDirectory.vehiclesDrivenBy(m.accountId)
             val row = contactRow(groupMembers, if (isMe) "${member.name} (나)" else member.name, DemoDirectory.hasFinderPhone(m.accountId), vehicles.isNotEmpty())
@@ -393,11 +393,11 @@ class MainActivity : AppCompatActivity() {
             .setTitle("${session.vehicle.name} 운전자")
             .setItems(items.toTypedArray()) { _, which ->
                 if (which < drivers.size) {
-                    expandedId = null
+                    selectedId = null
                     openGroupId = null
                     session.switchDriver(drivers[which])
                 } else {
-                    expandedId = null
+                    selectedId = null
                     openGroupId = null
                     session.resetDemo()
                 }

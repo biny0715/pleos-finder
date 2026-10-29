@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 폰 그룹 상세: 구성원(사람·차량)과 그룹별 내 위치 공유 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/pleos_background_primary"
+    android:fillViewport="true"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/backButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/pleos_bg_row"
+                android:contentDescription="뒤로"
+                android:gravity="center"
+                android:text="‹"
+                android:textAppearance="@style/TextAppearance.Pleos.Headline" />
+
+            <TextView
+                android:id="@+id/groupName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:textAppearance="@style/TextAppearance.Pleos.Title" />
+        </LinearLayout>
+
+        <LinearLayout
+            style="@style/Widget.Pleos.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/pleos_gap">
+
+            <TextView
+                android:id="@+id/membersTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+            <LinearLayout
+                android:id="@+id/memberList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="vertical" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/shareCard"
+            style="@style/Widget.Pleos.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/group_my_sharing"
+                android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+
+            <RadioGroup
+                android:id="@+id/shareGroup"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/pleos_segment_height"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/pleos_bg_segment_container"
+                android:orientation="horizontal"
+                android:padding="@dimen/pleos_segment_inset">
+
+                <RadioButton
+                    android:id="@+id/shareAlways"
+                    style="@style/Widget.Pleos.Segment"
+                    android:text="@string/permission_always" />
+
+                <RadioButton
+                    android:id="@+id/shareTemporary"
+                    style="@style/Widget.Pleos.Segment"
+                    android:text="@string/permission_temporary" />
+
+                <RadioButton
+                    android:id="@+id/shareOff"
+                    style="@style/Widget.Pleos.Segment"
+                    android:text="@string/permission_off" />
+            </RadioGroup>
+
+            <TextView
+                android:id="@+id/shareDetail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+
+            <Button
+                android:id="@+id/extendButton"
+                style="@style/Widget.Pleos.Button.Basic"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/action_extend_30" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

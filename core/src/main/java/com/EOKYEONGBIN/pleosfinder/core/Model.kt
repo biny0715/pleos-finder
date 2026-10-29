@@ -56,6 +56,33 @@ data class GroupMember(
 ) {
     fun isSharing(now: Long = System.currentTimeMillis()): Boolean = status == InviteStatus.ACCEPTED &&
         (share == SharePermission.ALWAYS || (share == SharePermission.TEMPORARY && now < shareUntil))
+
+    /** 화면에 보일 공유 방식. 시간이 지난 일시적 허용은 끄기로 본다. */
+    fun effectiveShare(now: Long = System.currentTimeMillis()): SharePermission =
+        if (share == SharePermission.TEMPORARY && now >= shareUntil) SharePermission.OFF else share
+
+    /** 공유 방식을 바꾼다. 일시적 허용은 지금부터 30분으로 시작한다. */
+    fun withShare(value: SharePermission, now: Long = System.currentTimeMillis()): GroupMember =
+        copy(share = value, shareUntil = if (value == SharePermission.TEMPORARY) now + SHARE_STEP_MS else 0L)
+
+    /** 일시적 허용 시간을 30분 늘린다. 이미 끝났으면 지금부터 30분. */
+    fun extended(now: Long = System.currentTimeMillis()): GroupMember {
+        val base = if (share == SharePermission.TEMPORARY && shareUntil > now) shareUntil else now
+        return copy(share = SharePermission.TEMPORARY, shareUntil = base + SHARE_STEP_MS)
+    }
+
+    /** 지금 공유 상태를 사람이 읽을 문장으로 */
+    fun shareText(now: Long = System.currentTimeMillis()): String = when {
+        status == InviteStatus.PENDING -> "초대 수락 대기 중"
+        share == SharePermission.ALWAYS -> "항상 공유 중"
+        share == SharePermission.TEMPORARY && now < shareUntil ->
+            "${java.text.SimpleDateFormat("a h:mm", java.util.Locale.KOREA).format(java.util.Date(shareUntil))}까지 공유"
+        else -> "공유 안 함"
+    }
+
+    companion object {
+        const val SHARE_STEP_MS = 30 * 60_000L
+    }
 }
 
 data class FinderGroup(

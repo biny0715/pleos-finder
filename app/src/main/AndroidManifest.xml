@@ -38,9 +38,9 @@
             android:name=".gleo.GleoActionReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="START_PICKUP" />
-                <action android:name="STOP_PICKUP" />
-                <action android:name="GET_MEMBER_LOCATION" />
+                <action android:name="PICKUP" />
+                <action android:name="SHARE_LOCATION" />
+                <action android:name="STOP_LOCATION_SHARING" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>

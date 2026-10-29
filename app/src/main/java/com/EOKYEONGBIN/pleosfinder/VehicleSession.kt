@@ -222,11 +222,14 @@ class VehicleSession(context: Context) {
 
     // ---- 목록 ----
 
+    /** 지금 운전자가 부르는 이름(아빠에게 엄마는 '와이프')을 담은 Member. 앱 안의 모든 상대는 이걸로 만든다. */
+    fun person(id: String): Member = DemoDirectory.memberFor(me.id, id)
+
     fun contacts(relation: Relation): List<Contact> = connections
         .filter { it.relation == relation && it.status != InviteStatus.DECLINED }
         .map { connection ->
             Contact(
-                member = DemoDirectory.member(connection.otherId),
+                member = person(connection.otherId),
                 connection = connection,
                 hasFinderPhone = DemoDirectory.hasFinderPhone(connection.otherId),
                 vehicles = DemoDirectory.vehiclesDrivenBy(connection.otherId),
@@ -238,7 +241,7 @@ class VehicleSession(context: Context) {
     /** 연락처 중 아직 가족·친구가 아닌 사람 */
     fun addableContacts(): List<Member> {
         val linked = connections.filter { it.status != InviteStatus.DECLINED }.map { it.otherId }.toSet()
-        return DemoDirectory.accounts.map { it.member }.filter { it != me && it.id !in linked }
+        return DemoDirectory.accounts.map { person(it.member.id) }.filter { it.id != me.id && it.id !in linked }
     }
 
     /** 픽업할 수 있는 사람(수락한 가족·친구 중 폰 앱이 있는 사람). Gleo 이름 찾기에 쓴다. */
@@ -303,22 +306,26 @@ class VehicleSession(context: Context) {
     /** 그룹에 내(운전 중인 차량 포함) 위치를 보여 주는 방식. 일시적 허용을 고르면 30분부터 시작한다. */
     fun setGroupShare(group: FinderGroup, share: SharePermission) {
         val mine = group.memberOf(me.id) ?: return
-        val until = if (share == SharePermission.TEMPORARY) System.currentTimeMillis() + TEMPORARY_STEP_MS else 0L
-        repository.setGroupMember(group.id, mine.copy(share = share, shareUntil = until))
+        repository.setGroupMember(group.id, mine.withShare(share))
+    }
+
+    /** 그룹에 정한 시각까지 일시적으로 공유한다(Gleo: "주말 캠핑 그룹에 2시간만 공유해줘"). */
+    fun setGroupShareUntil(group: FinderGroup, until: Long) {
+        val mine = group.memberOf(me.id) ?: return
+        repository.setGroupMember(group.id, mine.copy(share = SharePermission.TEMPORARY, shareUntil = until))
+        showMessage("'${group.name}' 그룹에 ${TIME.format(java.util.Date(until))}까지 내 위치를 공유해요.")
     }
 
     /** 일시적 허용 시간을 30분 늘린다. 이미 끝났으면 지금부터 30분. */
     fun extendGroupShare(group: FinderGroup) {
         val mine = group.memberOf(me.id) ?: return
-        val now = System.currentTimeMillis()
-        val base = if (mine.share == SharePermission.TEMPORARY && mine.shareUntil > now) mine.shareUntil else now
-        repository.setGroupMember(group.id, mine.copy(share = SharePermission.TEMPORARY, shareUntil = base + TEMPORARY_STEP_MS))
+        repository.setGroupMember(group.id, mine.extended())
     }
 
     /** 그룹에 보낼 수 있는 연락처(아직 구성원이 아닌 사람) */
     fun invitableToGroup(group: FinderGroup): List<Member> {
         val inGroup = group.members.filter { it.status != InviteStatus.DECLINED }.map { it.accountId }.toSet()
-        return DemoDirectory.accounts.map { it.member }.filter { it.id !in inGroup }
+        return DemoDirectory.accounts.map { person(it.member.id) }.filter { it.id !in inGroup }
     }
 
     // ---- 가족·친구 ----
@@ -431,15 +438,7 @@ class VehicleSession(context: Context) {
         private const val TAG = "PleosFinder"
         private const val KEY_DRIVER = "driver"
         private const val VEHICLE_PUBLISH_MS = 15_000L
-        const val TEMPORARY_STEP_MS = 30 * 60_000L
+        const val TEMPORARY_STEP_MS = GroupMember.SHARE_STEP_MS
         private val TIME = java.text.SimpleDateFormat("a h:mm", java.util.Locale.KOREA)
     }
-}
-
-/** 그룹 구성원이 지금 공유 중인지를 사람이 읽을 문장으로 */
-fun GroupMember.shareText(now: Long = System.currentTimeMillis()): String = when {
-    status == InviteStatus.PENDING -> "초대 수락 대기 중"
-    share == SharePermission.ALWAYS -> "항상 공유 중"
-    share == SharePermission.TEMPORARY && now < shareUntil -> "${java.text.SimpleDateFormat("a h:mm", java.util.Locale.KOREA).format(java.util.Date(shareUntil))}까지 공유"
-    else -> "공유 안 함"
 }

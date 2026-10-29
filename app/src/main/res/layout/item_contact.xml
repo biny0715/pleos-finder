@@ -1,90 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 가족·친구·그룹 구성원 한 줄. 누르면 actions 가 펼쳐진다. -->
+<!-- 가족·친구·그룹 구성원 한 줄. 누르면 오른쪽 빈 공간에 actions(픽업·위치 공유 등)가 나타난다. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/pleos_bg_row"
-    android:orientation="vertical"
-    android:padding="20dp">
+    android:gravity="center_vertical"
+    android:minHeight="128dp"
+    android:orientation="horizontal"
+    android:paddingStart="20dp"
+    android:paddingTop="16dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:id="@+id/avatar"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:background="@drawable/pleos_bg_avatar"
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/avatar"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:background="@drawable/pleos_bg_avatar"
-            android:gravity="center"
-            android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+        android:layout_marginStart="24dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="24dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
 
-                <TextView
-                    android:id="@+id/name"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+            <ImageView
+                android:id="@+id/personIcon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="12dp"
+                android:contentDescription="Finder 폰 앱 사용"
+                android:src="@drawable/pleos_ic_person" />
 
-                <ImageView
-                    android:id="@+id/personIcon"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="12dp"
-                    android:contentDescription="Finder 폰 앱 사용"
-                    android:src="@drawable/pleos_ic_person" />
+            <ImageView
+                android:id="@+id/carIcon"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:contentDescription="Pleos 차량 운전"
+                android:src="@drawable/pleos_ic_car" />
+        </LinearLayout>
 
-                <ImageView
-                    android:id="@+id/carIcon"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:layout_marginStart="4dp"
-                    android:contentDescription="Pleos 차량 운전"
-                    android:src="@drawable/pleos_ic_car" />
-            </LinearLayout>
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <LinearLayout
+            <View
+                android:id="@+id/dot"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/pleos_dot" />
+
+            <TextView
+                android:id="@+id/status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/dot"
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:layout_marginEnd="10dp"
-                    android:background="@drawable/pleos_dot" />
-
-                <TextView
-                    android:id="@+id/status"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
-            </LinearLayout>
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
         </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/actions"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginStart="24dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone" />
 </LinearLayout>

@@ -213,6 +213,27 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <!-- 그룹: 받은 초대와 참여한 그룹 -->
+            <LinearLayout
+                style="@style/Widget.Pleos.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/pleos_gap">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/section_groups"
+                    android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+
+                <LinearLayout
+                    android:id="@+id/groupList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
             <!-- 내 위치 공유 설정: 연결된 상대별 -->
             <LinearLayout
                 style="@style/Widget.Pleos.Card"

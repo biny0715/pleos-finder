@@ -1,23 +1,28 @@
 {
   "packageName": "com.EOKYEONGBIN.pleosfinder",
-  "appDescription": "A family location sharing app that guides the car to a family member's live location for pickups.",
+  "appDescription": "A family and friends location sharing app that guides the car to people for pickups and shares car locations with people or groups for a limited time.",
   "invokeWord": "파인더",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "actionCalls": [
     {
       "type": "function",
       "function": {
-        "name": "START_PICKUP",
-        "description": "Start a pickup by navigating to a family member's live location and notifying that member's phone.",
+        "name": "PICKUP",
+        "description": "Start or stop a pickup by navigating to a family member's or friend's live location, or tell how far the person being picked up is.",
         "parameters": {
           "type": "object",
           "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["start", "stop", "status"],
+              "description": "Whether to start a pickup, stop the current pickup, or report the person's location and distance."
+            },
             "memberName": {
               "type": "string",
-              "description": "Name or family role of the member to pick up, as registered in the family group."
+              "description": "Name or relationship of the person, as the driver calls them in the family or friend list."
             }
           },
-          "required": ["memberName"]
+          "required": ["action"]
         },
         "component": "service"
       }
@@ -25,30 +30,48 @@
     {
       "type": "function",
       "function": {
-        "name": "STOP_PICKUP",
-        "description": "Stop the pickup in progress and end navigation to the family member.",
+        "name": "SHARE_LOCATION",
+        "description": "Share the car's location with a person or a group for a limited time.",
         "parameters": {
           "type": "object",
-          "properties": {},
+          "properties": {
+            "targetName": {
+              "type": "string",
+              "description": "Name of the person or group to share the car's location with."
+            },
+            "durationMinutes": {
+              "type": "number",
+              "description": "How long to share, in minutes, up to 1440."
+            },
+            "untilEndOfToday": {
+              "type": "boolean",
+              "description": "True to share only until the end of today."
+            }
+          },
+          "required": ["targetName"]
+        },
+        "component": "service"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "STOP_LOCATION_SHARING",
+        "description": "Turn off location sharing that the driver has turned on, for one person or group, or for a whole list.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "targetName": {
+              "type": "string",
+              "description": "Name of one person or group to stop sharing with."
+            },
+            "category": {
+              "type": "string",
+              "enum": ["FAMILY", "FRIENDS", "GROUPS", "ALL"],
+              "description": "Which list to stop sharing with when no single person or group is named."
+            }
+          },
           "required": []
-        },
-        "component": "service"
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "GET_MEMBER_LOCATION",
-        "description": "Tell where a family member is and how far away the member is when a pickup is in progress.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "memberName": {
-              "type": "string",
-              "description": "Name or family role of the member to locate, as registered in the family group."
-            }
-          },
-          "required": ["memberName"]
         },
         "component": "service"
       }

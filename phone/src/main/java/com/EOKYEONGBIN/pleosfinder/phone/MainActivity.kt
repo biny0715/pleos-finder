@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.EOKYEONGBIN.pleosfinder.core.Connection
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
+import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.PickupStatus
 import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
@@ -45,12 +46,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var remainDistance: TextView
     private lateinit var remainTime: TextView
     private lateinit var permissionList: LinearLayout
+    private lateinit var groupList: LinearLayout
     private lateinit var shareDot: View
     private lateinit var shareText: TextView
 
     private var connections: List<Connection> = emptyList()
     private var permissions: Map<String, SharePermission> = emptyMap()
     private var request: ShareRequest? = null
+    private var groups: List<FinderGroup> = emptyList()
     private val subscriptions = mutableListOf<Subscription>()
 
     // 화면을 다시 그리면서 세그먼트를 바꿀 때는 사용자 선택으로 처리하지 않는다.
@@ -89,6 +92,7 @@ class MainActivity : AppCompatActivity() {
         remainDistance = findViewById(R.id.remainDistance)
         remainTime = findViewById(R.id.remainTime)
         permissionList = findViewById(R.id.permissionList)
+        groupList = findViewById(R.id.groupList)
         shareDot = findViewById(R.id.shareDot)
         shareText = findViewById(R.id.shareText)
 
@@ -126,6 +130,14 @@ class MainActivity : AppCompatActivity() {
             render()
         }
         subscriptions += repository.observePickupStatus(me.id, ::renderPickup)
+        subscriptions += repository.observeGroups { all ->
+            groups = all.filter { it.memberOf(me.id)?.let { m -> m.status != InviteStatus.DECLINED } == true }
+            // 그룹에 공유 중인데 서비스가 꺼져 있으면 다시 켠다.
+            if (groups.any { it.memberOf(me.id)?.isSharing() == true } && !LocationShareService.isRunning && hasLocationPermission()) {
+                LocationShareService.start(this)
+            }
+            renderGroups()
+        }
         render()
     }
 
@@ -181,7 +193,54 @@ class MainActivity : AppCompatActivity() {
         }
 
         renderPermissions()
+        renderGroups()
         renderShare()
+    }
+
+    /** 받은 그룹 초대(참여·거절)와 참여한 그룹(누르면 상세) */
+    private fun renderGroups() {
+        groupList.removeAllViews()
+        if (groups.isEmpty()) {
+            groupList.addView(TextView(this).apply {
+                text = "아직 참여한 그룹이 없어요. 차량이나 친구가 그룹에 초대하면 여기에 보여요."
+                setTextAppearance(CoreR.style.TextAppearance_Pleos_BodySmall)
+                setPadding(0, dp(12), 0, dp(4))
+            })
+            return
+        }
+        val now = System.currentTimeMillis()
+        for (group in groups.sortedBy { it.memberOf(me.id)?.status != InviteStatus.PENDING }) {
+            val mine = group.memberOf(me.id) ?: continue
+            val joined = group.members.count { it.status == InviteStatus.ACCEPTED }
+            val owner = DemoDirectory.member(group.ownerId).name
+            if (mine.status == InviteStatus.PENDING) {
+                val row = Row.add(groupList).bind(group.name, "", false, false, "${owner}가 초대했어요 · 구성원 ${joined}명", CoreR.color.pleos_informative_positive)
+                row.groupIcon()
+                row.addAction(getString(R.string.action_join_group), filled = true) {
+                    repository.setGroupMember(group.id, mine.copy(status = InviteStatus.ACCEPTED))
+                }
+                row.addAction(getString(R.string.action_decline_invite), filled = false) {
+                    repository.setGroupMember(group.id, mine.copy(status = InviteStatus.DECLINED))
+                }
+            } else {
+                val sharing = group.members.count { it.isSharing(now) }
+                val row = Row.add(groupList).bind(
+                    group.name, "", false, false,
+                    "구성원 ${joined}명 · ${sharing}명 공유 중 · 나: ${mine.shareText(now)}",
+                    if (mine.isSharing(now)) CoreR.color.pleos_informative_active else CoreR.color.pleos_text_quaternary,
+                    chevron = true,
+                )
+                row.groupIcon()
+                row.view.setOnClickListener { GroupActivity.open(this, group.id) }
+            }
+        }
+    }
+
+    private fun Row.groupIcon() {
+        view.findViewById<TextView>(R.id.avatar).apply {
+            foreground = ContextCompat.getDrawable(this@MainActivity, CoreR.drawable.pleos_ic_group)
+            foregroundGravity = android.view.Gravity.CENTER
+        }
     }
 
     /** 수락한 가족·친구마다 '○○에게 내 위치' 세그먼트를 그린다. */

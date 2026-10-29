@@ -19,6 +19,8 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
+import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
+import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.MemberLocation
 import com.EOKYEONGBIN.pleosfinder.core.PickupStatus
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
@@ -40,6 +42,16 @@ class LocationShareService : Service(), LocationListener {
     private var lastPickupState: PickupStatus.State? = null
     private var notifiedRequestAt = 0L
     private var receivingUpdates = false
+    private var groups: List<FinderGroup> = emptyList()
+    private val handler = android.os.Handler(Looper.getMainLooper())
+
+    /** 그룹의 일시적 허용 시간이 지나면 공유를 멈추도록 주기적으로 다시 판단한다. */
+    private val groupExpiryCheck = object : Runnable {
+        override fun run() {
+            refreshSharing()
+            handler.postDelayed(this, GROUP_CHECK_MS)
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -71,6 +83,11 @@ class LocationShareService : Service(), LocationListener {
             subscriptions += repository.observePermissions(me.id, ::onPermissions)
             subscriptions += repository.observeShareRequest(me.id, ::onShareRequest)
             subscriptions += repository.observePickupStatus(me.id, ::onPickupStatus)
+            subscriptions += repository.observeGroups { all ->
+                groups = all.filter { it.memberOf(me.id)?.status == InviteStatus.ACCEPTED }
+                refreshSharing()
+            }
+            handler.postDelayed(groupExpiryCheck, GROUP_CHECK_MS)
         }
         isRunning = true
         notifyStateChanged()
@@ -78,6 +95,7 @@ class LocationShareService : Service(), LocationListener {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(groupExpiryCheck)
         subscriptions.forEach { it.cancel() }
         subscriptions.clear()
         stopLocationUpdates()
@@ -90,10 +108,6 @@ class LocationShareService : Service(), LocationListener {
 
     private fun onPermissions(value: Map<String, SharePermission>) {
         permissions = value
-        if (value.values.all { it == SharePermission.OFF }) {
-            stopSelf()
-            return
-        }
         refreshSharing()
     }
 
@@ -108,10 +122,18 @@ class LocationShareService : Service(), LocationListener {
         refreshSharing()
     }
 
-    /** 누군가에게 항상 허용이거나, 일시적 허용 상대의 요청을 수락해 진행 중일 때만 위치를 보낸다. */
+    /**
+     * 위치를 보내는 경우: 누군가에게 항상 허용, 일시적 허용 상대의 요청을 수락해 진행 중,
+     * 또는 그룹에 공유 중(항상 / 정한 시간까지). 아무 허용도 남지 않으면 서비스를 멈춘다.
+     */
     private fun refreshSharing() {
         val request = shareRequest
-        val share = permissions.values.any { it == SharePermission.ALWAYS } ||
+        val groupSharing = groups.any { it.memberOf(FinderServices.me.id)?.isSharing() == true }
+        if (permissions.values.all { it == SharePermission.OFF } && !groupSharing) {
+            stopSelf()
+            return
+        }
+        val share = permissions.values.any { it == SharePermission.ALWAYS } || groupSharing ||
             (request != null && request.isActiveShare() && permissions[request.requesterId] == SharePermission.TEMPORARY)
         if (share) startLocationUpdates() else stopLocationUpdates()
         isSharing = share
@@ -203,7 +225,8 @@ class LocationShareService : Service(), LocationListener {
 
     private fun buildForegroundNotification(): Notification {
         val viewers = permissions.filterValues { it == SharePermission.ALWAYS }.keys.map { DemoDirectory.member(it).name } +
-            listOfNotNull(shareRequest?.takeIf { it.isActiveShare() }?.requesterName)
+            listOfNotNull(shareRequest?.takeIf { it.isActiveShare() }?.requesterName) +
+            groups.filter { it.memberOf(FinderServices.me.id)?.isSharing() == true }.map { "'${it.name}' 그룹" }
         val text = if (isSharing) "${viewers.distinct().joinToString(", ")}에게 내 위치를 공유하고 있어요." else "공유 요청이 오면 알려 드릴게요."
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
@@ -226,6 +249,7 @@ class LocationShareService : Service(), LocationListener {
         private const val REQUEST_NOTIFICATION_ID = 3
         private const val MIN_INTERVAL_MS = 5_000L
         private const val MIN_DISTANCE_M = 0f
+        private const val GROUP_CHECK_MS = 30_000L
         private const val ACTION_ACCEPT_REQUEST = "com.EOKYEONGBIN.pleosfinder.phone.ACCEPT_REQUEST"
         private const val ACTION_DECLINE_REQUEST = "com.EOKYEONGBIN.pleosfinder.phone.DECLINE_REQUEST"
 

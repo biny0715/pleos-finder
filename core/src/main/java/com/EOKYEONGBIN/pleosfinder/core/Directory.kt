@@ -44,6 +44,17 @@ object DemoDirectory {
 
     val vehicles = listOf(IONIQ5, GV70, K8)
 
+    /** 보는 사람 기준 호칭. 계정 이름(아빠·엄마·아들)은 아들 기준이라, 부부끼리는 서로 와이프·남편으로 부른다. */
+    private val RELATIVE_NAMES = mapOf(
+        (DAD.id to MOM.id) to "와이프",
+        (MOM.id to DAD.id) to "남편",
+    )
+
+    fun nameFor(viewerId: String, id: String): String = RELATIVE_NAMES[viewerId to id] ?: member(id).name
+
+    /** viewerId 가 부르는 이름을 담은 Member */
+    fun memberFor(viewerId: String, id: String): Member = Member(id, nameFor(viewerId, id))
+
     fun account(id: String): Account? = accounts.firstOrNull { it.member.id == id }
 
     fun member(id: String): Member = account(id)?.member ?: Member(id, id)
