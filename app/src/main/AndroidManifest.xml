@@ -26,6 +26,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 운전 중에도 쓰는 화면(Pleos 운전 중 제한 기준을 따른다): 큰 버튼, 짧은 문장, 한 번 터치 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
         </activity>
 
     </application>

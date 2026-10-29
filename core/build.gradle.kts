@@ -19,6 +19,8 @@ android {
 }
 
 dependencies {
+    // Pleos 공용 스타일(pleos_styles.xml)이 Material 버튼 스타일을 상속한다.
+    implementation(libs.material)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.database)
 }

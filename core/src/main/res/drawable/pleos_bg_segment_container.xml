@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Segmented menu (Box) 컨테이너: alpha_dark_50(5%) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/pleos_button_basic_enabled" />
+    <corners android:radius="@dimen/pleos_segment_radius" />
+</shape>

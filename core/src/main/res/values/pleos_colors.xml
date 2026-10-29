@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pleos Connect 디자인 토큰 (Light). 출처: document.pleos.ai › Design › Foundations › Colors -->
+<resources>
+    <color name="pleos_basic_00">#FFFFFF</color>
+    <color name="pleos_basic_50">#F7F8FA</color>
+    <color name="pleos_basic_100">#EDEEF2</color>
+    <color name="pleos_basic_200">#E0E1E6</color>
+    <color name="pleos_basic_300">#C7C9CE</color>
+    <color name="pleos_basic_400">#A4A8AE</color>
+    <color name="pleos_basic_500">#686A72</color>
+    <color name="pleos_basic_600">#44464E</color>
+    <color name="pleos_basic_700">#313236</color>
+    <color name="pleos_basic_800">#1D1E21</color>
+    <color name="pleos_basic_900">#131417</color>
+
+    <color name="pleos_background_primary">@color/pleos_basic_50</color>
+    <color name="pleos_surface_basic">@color/pleos_basic_00</color>
+    <color name="pleos_surface_high">@color/pleos_basic_100</color>
+    <color name="pleos_outline">@color/pleos_basic_100</color>
+
+    <!-- text_primary~quaternary = static_dark 100/84/64/32% -->
+    <color name="pleos_text_primary">#FF131417</color>
+    <color name="pleos_text_secondary">#D6131417</color>
+    <color name="pleos_text_tertiary">#A3131417</color>
+    <color name="pleos_text_quaternary">#52131417</color>
+
+    <!-- button_basic = alpha_dark_50(5%), pressed 10% / button_filled = basic_600, pressed basic_700 -->
+    <color name="pleos_button_basic_enabled">#0D131417</color>
+    <color name="pleos_button_basic_pressed">#1A131417</color>
+    <color name="pleos_button_filled_enabled">@color/pleos_basic_600</color>
+    <color name="pleos_button_filled_pressed">@color/pleos_basic_700</color>
+    <color name="pleos_button_disabled">#0D131417</color>
+    <color name="pleos_text_on_filled">#FFFFFFFF</color>
+    <color name="pleos_segment_selected">@color/pleos_basic_00</color>
+
+    <color name="pleos_informative_active">#02C265</color>
+    <color name="pleos_informative_positive">#0064FF</color>
+    <color name="pleos_informative_negative">#FE3D16</color>
+
+    <!-- 토스트: basic_static_dark_200 (#131417 84%) 위에 흰 글자 -->
+    <color name="pleos_toast_background">#D6131417</color>
+    <color name="pleos_toast_text">#FFFFFFFF</color>
+</resources>

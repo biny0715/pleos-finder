@@ -1,136 +1,284 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- 폰 앱: Pleos 디자인 토큰(폰 크기로 줄인 dimens)과 Asta Sans 를 쓴다. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/pleos_background_primary"
+    android:fitsSystemWindows="true">
 
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
-
-        <TextView
-            android:id="@+id/accountText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:textSize="14sp" />
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
         <LinearLayout
-            android:id="@+id/inviteCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:background="?attr/colorSecondary"
             android:orientation="vertical"
-            android:padding="20dp"
-            android:visibility="gone">
+            android:padding="20dp">
 
-            <TextView
-                android:id="@+id/inviteText"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:textColor="?attr/colorOnSecondary"
-                android:textSize="18sp" />
+                android:layout_marginBottom="20dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/inviteAlwaysButton"
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/app_title"
+                    android:textAppearance="@style/TextAppearance.Pleos.Title" />
+
+                <TextView
+                    android:id="@+id/accountText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Pleos.Label" />
+            </LinearLayout>
+
+            <!-- 가족 그룹 초대 -->
+            <LinearLayout
+                android:id="@+id/inviteCard"
+                style="@style/Widget.Pleos.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/action_accept_always" />
+                android:layout_marginBottom="@dimen/pleos_gap"
+                android:visibility="gone">
 
-            <Button
-                android:id="@+id/inviteTemporaryButton"
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/section_invite"
+                    android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+                <TextView
+                    android:id="@+id/inviteTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+
+                <TextView
+                    android:id="@+id/inviteDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="16dp"
+                    android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+
+                <Button
+                    android:id="@+id/inviteAlwaysButton"
+                    style="@style/Widget.Pleos.Button.Filled"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/action_accept_always" />
+
+                <Button
+                    android:id="@+id/inviteTemporaryButton"
+                    style="@style/Widget.Pleos.Button.Basic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/action_accept_temporary" />
+
+                <Button
+                    android:id="@+id/inviteDeclineButton"
+                    style="@style/Widget.Pleos.Button.Basic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/action_decline_invite" />
+            </LinearLayout>
+
+            <!-- 위치 공유 요청 (일시적 허용) -->
+            <LinearLayout
+                android:id="@+id/requestCard"
+                style="@style/Widget.Pleos.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/action_accept_temporary" />
+                android:layout_marginBottom="@dimen/pleos_gap"
+                android:visibility="gone">
 
-            <Button
-                android:id="@+id/inviteDeclineButton"
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/section_request"
+                    android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+                <TextView
+                    android:id="@+id/requestTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+
+                <TextView
+                    android:id="@+id/requestDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="16dp"
+                    android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+
+                <Button
+                    android:id="@+id/acceptRequestButton"
+                    style="@style/Widget.Pleos.Button.Filled"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/action_accept_request" />
+
+                <Button
+                    android:id="@+id/declineRequestButton"
+                    style="@style/Widget.Pleos.Button.Basic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/action_decline_request" />
+            </LinearLayout>
+
+            <!-- 픽업 현황 -->
+            <LinearLayout
+                style="@style/Widget.Pleos.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/action_decline_invite" />
+                android:layout_marginBottom="@dimen/pleos_gap">
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/section_pickup"
+                    android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+                <TextView
+                    android:id="@+id/pickupHeadline"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAppearance="@style/TextAppearance.Pleos.Headline" />
+
+                <TextView
+                    android:id="@+id/pickupDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+
+                <LinearLayout
+                    android:id="@+id/pickupMetrics"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/remainDistance"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.Pleos.Title" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/label_remain_distance"
+                            android:textAppearance="@style/TextAppearance.Pleos.Label" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/remainTime"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="@style/TextAppearance.Pleos.Title" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/label_remain_time"
+                            android:textAppearance="@style/TextAppearance.Pleos.Label" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 내 위치 공유 설정 -->
+            <LinearLayout
+                style="@style/Widget.Pleos.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/permissionTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+                <RadioGroup
+                    android:id="@+id/permissionGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/pleos_segment_height"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/pleos_bg_segment_container"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/pleos_segment_inset">
+
+                    <RadioButton
+                        android:id="@+id/permissionAlways"
+                        style="@style/Widget.Pleos.Segment"
+                        android:text="@string/permission_always" />
+
+                    <RadioButton
+                        android:id="@+id/permissionTemporary"
+                        style="@style/Widget.Pleos.Segment"
+                        android:text="@string/permission_temporary" />
+
+                    <RadioButton
+                        android:id="@+id/permissionOff"
+                        style="@style/Widget.Pleos.Segment"
+                        android:text="@string/permission_off" />
+                </RadioGroup>
+
+                <TextView
+                    android:id="@+id/permissionDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/shareDot"
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/pleos_dot" />
+
+                    <TextView
+                        android:id="@+id/shareText"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/requestCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:background="?attr/colorSecondary"
-            android:orientation="vertical"
-            android:padding="20dp"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/requestText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:textColor="?attr/colorOnSecondary"
-                android:textSize="18sp" />
-
-            <Button
-                android:id="@+id/acceptRequestButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/action_accept_request" />
-
-            <Button
-                android:id="@+id/declineRequestButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/action_decline_request" />
-
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/pickupText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
-            android:background="?attr/colorSecondary"
-            android:padding="20dp"
-            android:text="@string/pickup_none"
-            android:textColor="?attr/colorOnSecondary"
-            android:textSize="20sp" />
-
-        <TextView
-            android:id="@+id/permissionText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/alwaysButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/permission_always" />
-
-        <Button
-            android:id="@+id/temporaryButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/permission_temporary" />
-
-        <Button
-            android:id="@+id/offButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/permission_off" />
-
-        <TextView
-            android:id="@+id/shareText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/share_off"
-            android:textSize="16sp" />
-
-    </LinearLayout>
-
-</ScrollView>
+    </ScrollView>
+</FrameLayout>

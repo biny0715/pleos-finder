@@ -34,6 +34,12 @@
 
 계정은 기획상 Pleos 계정으로 로그인하지만, 출품본은 차량 앱 = 아빠, 폰 앱 = 아들로 로그인되어 있다고 가정합니다. 차량 그룹(차량끼리 위치 공유), 앱 자체 지도, Gleo AI 음성 연동, 차량 무전은 2차 PT 심사 전까지 구현할 예정입니다.
 
+## 디자인
+
+- [Pleos Connect 디자인 시스템](https://document.pleos.ai/en/docs/connect/guide/docs-design/Introduction/intro)의 색상 토큰(주간·야간), 글꼴(Asta Sans), 버튼·세그먼트·토스트 규격을 `core/src/main/res`에 옮겨 두 앱이 함께 씁니다.
+- 차량 앱은 운전 중에도 쓰는 화면이라 `distractionOptimized`로 등록했습니다. 주행(D단) 중에도 화면이 가려지지 않는 것을 에뮬레이터에서 확인했습니다.
+- 폰 앱에 넣은 Asta Sans 글꼴은 SIL Open Font License 1.1을 따릅니다. 라이선스 전문은 `phone/src/main/assets/licenses/AstaSans-OFL.txt`에 있습니다.
+
 ## 테스트 환경
 
 | 항목 | 버전 |

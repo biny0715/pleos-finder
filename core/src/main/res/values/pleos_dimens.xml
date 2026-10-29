@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pleos 컴포넌트 규격. 기본값은 차량(Connect-S-17, 160dpi → 1dp = 1px) 기준이고,
+  폰 앱은 자기 모듈의 dimens.xml 에서 같은 이름으로 덮어쓴다.
+-->
+<resources>
+    <!-- Typography: Headline 60/56/48, Title 40/36/32, Body 30/28/26, Label 24/20 -->
+    <dimen name="pleos_text_headline">48sp</dimen>
+    <dimen name="pleos_text_title">36sp</dimen>
+    <dimen name="pleos_text_title_small">32sp</dimen>
+    <dimen name="pleos_text_body">28sp</dimen>
+    <dimen name="pleos_text_body_small">26sp</dimen>
+    <dimen name="pleos_text_label">24sp</dimen>
+
+    <!-- Basic button: Large h100 r32, Medium h80 r24 -->
+    <dimen name="pleos_button_height_large">100dp</dimen>
+    <dimen name="pleos_button_radius_large">32dp</dimen>
+    <dimen name="pleos_button_height_medium">80dp</dimen>
+    <dimen name="pleos_button_radius_medium">24dp</dimen>
+    <dimen name="pleos_button_text">28sp</dimen>
+    <dimen name="pleos_button_padding_horizontal">40dp</dimen>
+
+    <dimen name="pleos_card_radius">24dp</dimen>
+    <dimen name="pleos_card_padding">40dp</dimen>
+    <dimen name="pleos_gap">24dp</dimen>
+
+    <!-- Segmented menu (Box): 컨테이너 h100 반원형, 선택 항목 h84 inset 8 -->
+    <dimen name="pleos_segment_height">100dp</dimen>
+    <dimen name="pleos_segment_radius">50dp</dimen>
+    <dimen name="pleos_segment_inset">8dp</dimen>
+    <dimen name="pleos_segment_item_radius">42dp</dimen>
+
+    <!-- Toast: 1줄 h80, r16, 좌우 40 / 상하 24, 패널 하단·좌우 24 -->
+    <dimen name="pleos_toast_radius">16dp</dimen>
+    <dimen name="pleos_toast_padding_horizontal">40dp</dimen>
+    <dimen name="pleos_toast_padding_vertical">24dp</dimen>
+    <dimen name="pleos_toast_margin">24dp</dimen>
+    <dimen name="pleos_toast_max_width">792dp</dimen>
+</resources>

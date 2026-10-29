@@ -15,7 +15,9 @@ class PickupRequester(
     private val repository: FinderRepository,
     private val pickupController: PickupController,
     private val driver: Member,
-    private val onStatus: (String) -> Unit,
+    private val onState: (PickupState) -> Unit,
+    /** 잠깐 보여 줄 안내(토스트) */
+    private val onMessage: (String) -> Unit,
 ) {
 
     private var waitingFor: Member? = null
@@ -34,16 +36,18 @@ class PickupRequester(
                     ShareRequest(target.id, driver.id, driver.name, ShareRequest.State.PENDING, requestedAt)
                 )
                 requestSubscription = repository.observeShareRequest(target.id) { onShareRequest(target, it, requestedAt) }
-                onStatus("${target.name}에게 위치 공유를 요청했어요.\n수락하면 바로 길 안내를 시작해요.")
+                onState(PickupState.WaitingForAcceptance(target))
             }
-            SharePermission.OFF -> onStatus("${target.name}이 위치 공유를 허용하지 않았어요.")
+            SharePermission.OFF -> onMessage("${target.name}이 위치 공유를 꺼 두었어요.")
         }
     }
 
     /** 수락을 기다리는 중이면 요청을 거둬들인다. */
     fun cancel() {
-        waitingFor?.let(::endShare)
+        val target = waitingFor ?: return
+        endShare(target)
         stopWaiting()
+        onState(PickupState.Idle)
     }
 
     /** 일시적 허용 공유를 끝낸다. 픽업이 완료·취소되면 PickupController 가 호출한다. */
@@ -63,7 +67,8 @@ class PickupRequester(
             }
             ShareRequest.State.DECLINED -> {
                 stopWaiting()
-                onStatus("${target.name}이 위치 공유를 거절했어요.")
+                onState(PickupState.Idle)
+                onMessage("${target.name}이 위치 공유를 거절했어요.")
             }
             ShareRequest.State.PENDING, ShareRequest.State.ENDED -> Unit
         }

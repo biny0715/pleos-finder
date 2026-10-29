@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 폰 화면용 Pleos 규격: 차량 기준값(core/pleos_dimens)을 폰 크기에 맞게 줄인다. -->
+<resources>
+    <dimen name="pleos_text_headline">26sp</dimen>
+    <dimen name="pleos_text_title">20sp</dimen>
+    <dimen name="pleos_text_title_small">18sp</dimen>
+    <dimen name="pleos_text_body">16sp</dimen>
+    <dimen name="pleos_text_body_small">14sp</dimen>
+    <dimen name="pleos_text_label">13sp</dimen>
+
+    <dimen name="pleos_button_height_large">56dp</dimen>
+    <dimen name="pleos_button_radius_large">18dp</dimen>
+    <dimen name="pleos_button_height_medium">48dp</dimen>
+    <dimen name="pleos_button_radius_medium">14dp</dimen>
+    <dimen name="pleos_button_text">16sp</dimen>
+    <dimen name="pleos_button_padding_horizontal">20dp</dimen>
+
+    <dimen name="pleos_card_radius">20dp</dimen>
+    <dimen name="pleos_card_padding">20dp</dimen>
+    <dimen name="pleos_gap">12dp</dimen>
+
+    <dimen name="pleos_segment_height">52dp</dimen>
+    <dimen name="pleos_segment_radius">26dp</dimen>
+    <dimen name="pleos_segment_inset">4dp</dimen>
+    <dimen name="pleos_segment_item_radius">22dp</dimen>
+
+    <dimen name="pleos_toast_radius">12dp</dimen>
+    <dimen name="pleos_toast_padding_horizontal">20dp</dimen>
+    <dimen name="pleos_toast_padding_vertical">14dp</dimen>
+    <dimen name="pleos_toast_margin">16dp</dimen>
+    <dimen name="pleos_toast_max_width">360dp</dimen>
+</resources>

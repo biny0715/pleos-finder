@@ -1,16 +1,18 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Theme.PleosFinder" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorSecondaryVariant">@color/teal_700</item>
-        <item name="colorOnSecondary">@color/black</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        <!-- Customize your theme here. -->
+<resources>
+    <!--
+      Pleos 차량 앱 테마. 액션바 없이 앱이 직접 머리글을 그린다.
+      색은 core 의 pleos 토큰(주간/야간)을, 글꼴은 차량 시스템 글꼴(Asta Sans)을 그대로 쓴다.
+    -->
+    <style name="Theme.PleosFinder" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/pleos_basic_600</item>
+        <item name="colorPrimaryVariant">@color/pleos_basic_700</item>
+        <item name="colorOnPrimary">@color/pleos_text_on_filled</item>
+        <item name="colorSecondary">@color/pleos_informative_active</item>
+        <item name="colorOnSecondary">@color/pleos_basic_00</item>
+        <item name="android:colorBackground">@color/pleos_background_primary</item>
+        <item name="android:windowBackground">@color/pleos_background_primary</item>
+        <item name="android:textColorPrimary">@color/pleos_text_primary</item>
+        <item name="android:textColorSecondary">@color/pleos_text_secondary</item>
+        <item name="android:statusBarColor">@color/pleos_background_primary</item>
     </style>
 </resources>

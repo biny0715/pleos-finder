@@ -24,7 +24,7 @@ class PickupController(
     private val locationSource: MemberLocationSource,
     private val driver: Member,
     private val publishStatus: (PickupStatus) -> Unit,
-    private val onStatus: (String) -> Unit,
+    private val onState: (PickupState) -> Unit,
     /** 픽업이 완료되거나 취소되면 호출된다. 일시적 허용 공유를 끝내는 데 쓴다. */
     private val onFinished: (Member) -> Unit = {},
 ) : NaviHelperEventListener {
@@ -64,7 +64,10 @@ class PickupController(
         if (target != null) sendStatus(target, PickupStatus.State.CANCELLED)
         if (routedLocation != null) naviHelper.cancelRoute()
         reset()
-        if (target != null) onFinished(target)
+        if (target != null) {
+            onFinished(target)
+            onState(PickupState.Idle)
+        }
     }
 
     private fun reset() {
@@ -125,7 +128,7 @@ class PickupController(
         sendStatus(target, PickupStatus.State.ARRIVED)
         reset()
         onFinished(target)
-        onStatus("${target.name} 픽업 완료")
+        onState(PickupState.Completed(target))
     }
 
     private fun sendStatus(target: Member, state: PickupStatus.State) {
@@ -145,13 +148,7 @@ class PickupController(
 
     private fun render() {
         val target = member ?: return
-        val location = latestLocation
-        val position = if (location == null) "위치 받는 중" else "%.5f, %.5f".format(location.latitude, location.longitude)
-        val distance = remainDistanceMeters
-        val time = remainTimeSeconds
-        val remain = if (distance == null || time == null) "경로 탐색 중" else
-            "남은 거리 %.1fkm · 약 %d분".format(distance / 1000.0, (time + 59) / 60)
-        onStatus("${target.name} 픽업 중\n${target.name} 위치: $position\n$remain")
+        onState(PickupState.OnTheWay(target, latestLocation, remainDistanceMeters, remainTimeSeconds))
     }
 
     override fun onCurrentLocationInfo(currentLocationInfo: CurrentLocationInfo) {

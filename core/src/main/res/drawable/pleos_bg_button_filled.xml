@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Basic button (filled): basic_600, pressed basic_700, disabled alpha 5% -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape><solid android:color="@color/pleos_button_disabled" /><corners android:radius="@dimen/pleos_button_radius_large" /></shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape><solid android:color="@color/pleos_button_filled_pressed" /><corners android:radius="@dimen/pleos_button_radius_large" /></shape>
+    </item>
+    <item>
+        <shape><solid android:color="@color/pleos_button_filled_enabled" /><corners android:radius="@dimen/pleos_button_radius_large" /></shape>
+    </item>
+</selector>
