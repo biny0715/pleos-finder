@@ -8,6 +8,9 @@ import com.EOKYEONGBIN.pleosfinder.core.FirebaseFinderRepository
 object FinderServices {
     val repository: FinderRepository by lazy { FirebaseFinderRepository() }
 
-    // 계정·그룹 기능 전까지는 이 폰을 시연용 '아들'로 고정한다.
+    // 기획상 Pleos 계정으로 로그인하지만, 출품본은 이 폰이 '아들'로 로그인되어 있다고 가정한다.
     val me = DemoGroup.SON
+
+    // 가족 그룹에서 내 위치를 보는 상대(픽업하러 오는 아빠)
+    val viewer = DemoGroup.DAD
 }

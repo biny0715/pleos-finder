@@ -25,6 +25,8 @@ class PickupController(
     private val driver: Member,
     private val publishStatus: (PickupStatus) -> Unit,
     private val onStatus: (String) -> Unit,
+    /** 픽업이 완료되거나 취소되면 호출된다. 일시적 허용 공유를 끝내는 데 쓴다. */
+    private val onFinished: (Member) -> Unit = {},
 ) : NaviHelperEventListener {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -58,9 +60,11 @@ class PickupController(
     }
 
     fun stop() {
-        member?.let { sendStatus(it, PickupStatus.State.CANCELLED) }
+        val target = member
+        if (target != null) sendStatus(target, PickupStatus.State.CANCELLED)
         if (routedLocation != null) naviHelper.cancelRoute()
         reset()
+        if (target != null) onFinished(target)
     }
 
     private fun reset() {
@@ -78,6 +82,8 @@ class PickupController(
 
     private fun onMemberLocation(location: MemberLocation) {
         val target = member ?: return
+        // 공유가 꺼진 동안 서버에 남아 있던 예전 위치로는 안내하지 않는다.
+        if (System.currentTimeMillis() - location.updatedAt > LOCATION_STALE_MS) return
         latestLocation = location
         if (checkArrival()) return
         if (shouldReroute(location)) {
@@ -118,6 +124,7 @@ class PickupController(
         val target = member ?: return
         sendStatus(target, PickupStatus.State.ARRIVED)
         reset()
+        onFinished(target)
         onStatus("${target.name} 픽업 완료")
     }
 
@@ -184,5 +191,6 @@ class PickupController(
         const val MIN_REROUTE_INTERVAL_MS = 10_000L
         const val ARRIVAL_RADIUS_M = 50f
         const val VEHICLE_POLL_MS = 5_000L
+        const val LOCATION_STALE_MS = 2 * 60_000L
     }
 }

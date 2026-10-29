@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">PleosFinder</string>
     <string name="status_connecting">NaviHelper 연결 중…</string>
+    <string name="account_format">로그인: %1$s (시연용 계정)</string>
+    <string name="action_invite">아들 가족 초대</string>
     <string name="action_start_pickup">아들 픽업 시작</string>
     <string name="action_stop_pickup">픽업 종료</string>
     <string name="action_current_location">차량 현재 위치 조회</string>

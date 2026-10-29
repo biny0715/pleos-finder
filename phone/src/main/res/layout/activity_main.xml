@@ -1,33 +1,136 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp">
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/pickupText"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
-        android:background="?attr/colorSecondary"
-        android:padding="20dp"
-        android:text="@string/pickup_none"
-        android:textColor="?attr/colorOnSecondary"
-        android:textSize="20sp" />
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <TextView
-        android:id="@+id/shareText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="@string/share_off"
-        android:textSize="16sp" />
+        <TextView
+            android:id="@+id/accountText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:textSize="14sp" />
 
-    <Button
-        android:id="@+id/shareButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/action_start_sharing" />
+        <LinearLayout
+            android:id="@+id/inviteCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="?attr/colorSecondary"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:visibility="gone">
 
-</LinearLayout>
+            <TextView
+                android:id="@+id/inviteText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:textColor="?attr/colorOnSecondary"
+                android:textSize="18sp" />
+
+            <Button
+                android:id="@+id/inviteAlwaysButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/action_accept_always" />
+
+            <Button
+                android:id="@+id/inviteTemporaryButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/action_accept_temporary" />
+
+            <Button
+                android:id="@+id/inviteDeclineButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/action_decline_invite" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/requestCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="?attr/colorSecondary"
+            android:orientation="vertical"
+            android:padding="20dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/requestText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:textColor="?attr/colorOnSecondary"
+                android:textSize="18sp" />
+
+            <Button
+                android:id="@+id/acceptRequestButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/action_accept_request" />
+
+            <Button
+                android:id="@+id/declineRequestButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/action_decline_request" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/pickupText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:background="?attr/colorSecondary"
+            android:padding="20dp"
+            android:text="@string/pickup_none"
+            android:textColor="?attr/colorOnSecondary"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/permissionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/alwaysButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/permission_always" />
+
+        <Button
+            android:id="@+id/temporaryButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/permission_temporary" />
+
+        <Button
+            android:id="@+id/offButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/permission_off" />
+
+        <TextView
+            android:id="@+id/shareText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/share_off"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+
+</ScrollView>
