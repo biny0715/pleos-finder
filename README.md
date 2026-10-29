@@ -31,8 +31,27 @@
 | 구성원이 차 50m 안으로 오면 픽업 자동 완료 | ○ | ○ (도착 알림) |
 | 앱을 닫아도 백그라운드에서 위치 전송·요청 수신 | - | ○ |
 | "아빠가 픽업하러 오고 있어요" / "도착했어요" 알림 | - | ○ |
+| Gleo AI 음성 명령: 픽업 시작·종료, 구성원 위치 묻기 | ○ | - |
 
-계정은 기획상 Pleos 계정으로 로그인하지만, 출품본은 차량 앱 = 아빠, 폰 앱 = 아들로 로그인되어 있다고 가정합니다. 차량 그룹(차량끼리 위치 공유), 앱 자체 지도, Gleo AI 음성 연동, 차량 무전은 2차 PT 심사 전까지 구현할 예정입니다.
+계정은 기획상 Pleos 계정으로 로그인하지만, 출품본은 차량 앱 = 아빠, 폰 앱 = 아들로 로그인되어 있다고 가정합니다. 차량 그룹(차량끼리 위치 공유), 앱 자체 지도, 차량 무전은 2차 PT 심사 전까지 구현할 예정입니다.
+
+## Gleo AI 음성 연동
+
+차량 앱은 `app/src/main/assets/schema.json`으로 기능 3개를 Gleo AI에 등록합니다. Pleos Connect Emulator의 Gleo AI가 설치 즉시 이 파일을 읽는 것을 로그로 확인했습니다(`functionCount=3`).
+
+| 기능 | 예시 발화 | 동작 |
+|---|---|---|
+| `START_PICKUP(memberName)` | "아들 데리러 가자" | 항상 허용이면 바로 길 안내, 일시적 허용이면 아들 폰에 공유 요청 |
+| `STOP_PICKUP` | "픽업 그만할래" | 진행 중인 픽업·요청 종료 |
+| `GET_MEMBER_LOCATION(memberName)` | "아들 지금 어디쯤이야?" | 픽업 중이면 남은 거리·시간을, 아니면 마지막 위치 갱신 시각을 답변 |
+
+- 세 기능 모두 화면 없이 처리하는 `service` 방식입니다(`gleo/GleoActionReceiver.kt`). 결과는 Gleo Callback 규격(`success` / `asking` / `fail`)으로 7초 안에 돌려줍니다.
+- 이름을 모르면 `asking`으로 되묻고, 위치 공유를 끈 구성원이면 `fail`로 이유를 알려 줍니다.
+- 설치 직후에는 Android가 앱을 '중지됨' 상태로 두어 Gleo 호출을 받지 못하므로, 차량 앱을 한 번 열어 주세요.
+- 음성 없이 시험하려면 Gleo가 보내는 것과 같은 신호를 보냅니다.
+  ```
+  adb -s <Pleos 에뮬레이터> shell am broadcast --user current -p com.EOKYEONGBIN.pleosfinder -a START_PICKUP --es ACTION_PARAM '{"memberName":"아들"}'
+  ```
 
 ## 디자인
 
@@ -83,7 +102,8 @@
 ## 프로젝트 구조
 
 ```
-app/    차량 앱 (Pleos Connect). 허용 방식별 픽업 시작: pickup/PickupRequester.kt, 길 안내·도착: pickup/PickupController.kt
+app/    차량 앱 (Pleos Connect). 앱 전체 픽업 상태: VehicleSession.kt, Gleo 음성 명령: gleo/,
+        허용 방식별 픽업 시작: pickup/PickupRequester.kt, 길 안내·도착: pickup/PickupController.kt
 phone/  폰 앱. 허용 방식에 따른 위치 공유·요청 알림: LocationShareService.kt
 core/   두 앱이 함께 쓰는 데이터 모델과 Firebase 연동 (FirebaseFinderRepository.kt)
 apk/    제출용 release APK

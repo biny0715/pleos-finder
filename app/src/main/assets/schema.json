@@ -1,0 +1,57 @@
+{
+  "packageName": "com.EOKYEONGBIN.pleosfinder",
+  "appDescription": "A family location sharing app that guides the car to a family member's live location for pickups.",
+  "invokeWord": "파인더",
+  "version": "1.0.0",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "name": "START_PICKUP",
+        "description": "Start a pickup by navigating to a family member's live location and notifying that member's phone.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "memberName": {
+              "type": "string",
+              "description": "Name or family role of the member to pick up, as registered in the family group."
+            }
+          },
+          "required": ["memberName"]
+        },
+        "component": "service"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "STOP_PICKUP",
+        "description": "Stop the pickup in progress and end navigation to the family member.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        },
+        "component": "service"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "GET_MEMBER_LOCATION",
+        "description": "Tell where a family member is and how far away the member is when a pickup is in progress.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "memberName": {
+              "type": "string",
+              "description": "Name or family role of the member to locate, as registered in the family group."
+            }
+          },
+          "required": ["memberName"]
+        },
+        "component": "service"
+      }
+    }
+  ]
+}

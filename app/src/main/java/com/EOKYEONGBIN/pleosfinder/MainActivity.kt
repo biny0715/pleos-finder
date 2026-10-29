@@ -2,69 +2,42 @@ package com.EOKYEONGBIN.pleosfinder
 
 import android.content.res.ColorStateList
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.Button
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.annotation.ColorRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import ai.pleos.playground.navi.constants.NaviErrorCode
-import ai.pleos.playground.navi.helper.NaviHelper
-import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
-import com.EOKYEONGBIN.pleosfinder.core.DemoGroup
-import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
-import com.EOKYEONGBIN.pleosfinder.core.FirebaseFinderRepository
 import com.EOKYEONGBIN.pleosfinder.core.Invite
+import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
-import com.EOKYEONGBIN.pleosfinder.core.Subscription
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosToast
-import com.EOKYEONGBIN.pleosfinder.pickup.PickupController
-import com.EOKYEONGBIN.pleosfinder.pickup.PickupRequester
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupState
-import com.EOKYEONGBIN.pleosfinder.pickup.RepositoryMemberLocationSource
 
 class MainActivity : AppCompatActivity() {
 
-    private val repository = FirebaseFinderRepository()
-    private val me = DemoGroup.DAD
-    private val son = DemoGroup.SON
+    private val session get() = (application as PleosFinderApp).session
+    private val son get() = session.family.first()
 
-    private lateinit var naviHelper: NaviHelper
-    private lateinit var pickupController: PickupController
-    private lateinit var pickupRequester: PickupRequester
     private lateinit var toast: PleosToast
-
     private lateinit var memberDot: View
     private lateinit var memberStatus: TextView
     private lateinit var inviteButton: Button
     private lateinit var startPickupButton: Button
     private lateinit var pickupHeadline: TextView
     private lateinit var pickupDetail: TextView
-    private lateinit var pickupProgress: ProgressBar
+    private lateinit var pickupProgress: View
     private lateinit var pickupMetrics: View
     private lateinit var remainDistance: TextView
     private lateinit var remainTime: TextView
     private lateinit var pickupActionButton: Button
-
-    private var naviConnected = false
-    private var sonInvite: Invite? = null
-    private var sonPermission = SharePermission.OFF
-    private var pickupState: PickupState = PickupState.Idle
-    private val subscriptions = mutableListOf<Subscription>()
-
-    // NaviHelper 콜백은 메인 스레드가 아닐 수 있다.
-    private val naviEventListener = object : NaviHelperEventListener {
-        override fun onError(naviErrorCode: NaviErrorCode) = showMessage("길 안내 오류: $naviErrorCode")
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         toast = PleosToast(findViewById(R.id.toast))
-        findViewById<TextView>(R.id.accountText).text = getString(R.string.account_format, me.name)
+        findViewById<TextView>(R.id.accountText).text = getString(R.string.account_format, session.me.name)
         findViewById<TextView>(R.id.memberAvatar).text = son.name.take(1)
         findViewById<TextView>(R.id.memberName).text = son.name
         memberDot = findViewById(R.id.memberDot)
@@ -80,79 +53,37 @@ class MainActivity : AppCompatActivity() {
         pickupActionButton = findViewById(R.id.pickupActionButton)
         startPickupButton.text = "${son.name} ${getString(R.string.action_start_pickup)}"
 
-        naviHelper = NaviHelper(applicationContext)
-        pickupController = PickupController(
-            naviHelper = naviHelper,
-            locationSource = RepositoryMemberLocationSource(repository),
-            driver = me,
-            publishStatus = repository::publishPickupStatus,
-            onState = ::onPickupState,
-            onFinished = { pickupRequester.endShare(it) },
-        )
-        pickupRequester = PickupRequester(repository, pickupController, me, ::onPickupState, ::showMessage)
-        naviHelper.initialize(
-            onConnected = {
-                naviHelper.addListener(naviEventListener)
-                naviHelper.addListener(pickupController)
-                runOnUiThread {
-                    naviConnected = true
-                    renderMember()
-                }
-            },
-            onFailed = { throwable -> showMessage("내비게이션 연결 실패: ${throwable.message}") }
-        )
-
-        subscriptions += repository.observeInvite(son.id) {
-            sonInvite = it
-            renderMember()
-        }
-        subscriptions += repository.observePermission(son.id, me.id) {
-            sonPermission = it
-            renderMember()
-        }
-
-        inviteButton.setOnClickListener {
-            repository.publishInvite(Invite(son.id, me.id, me.name, Invite.Status.PENDING, System.currentTimeMillis()))
-            showMessage("${son.name}에게 가족 그룹 초대를 보냈어요.")
-        }
-        startPickupButton.setOnClickListener { pickupRequester.request(son, sonPermission) }
-        pickupActionButton.setOnClickListener {
-            when (pickupState) {
-                is PickupState.WaitingForAcceptance -> pickupRequester.cancel()
-                is PickupState.OnTheWay -> {
-                    pickupController.stop()
-                    showMessage("픽업을 종료했어요.")
-                }
-                else -> Unit
-            }
-        }
-        renderPickup()
+        inviteButton.setOnClickListener { session.invite(son) }
+        startPickupButton.setOnClickListener { session.startPickup(son) }
+        pickupActionButton.setOnClickListener { session.stopPickup() }
     }
 
-    override fun onDestroy() {
-        subscriptions.forEach { it.cancel() }
-        pickupRequester.cancel()
-        pickupController.stop()
-        naviHelper.removeListener(pickupController)
-        naviHelper.removeListener(naviEventListener)
-        naviHelper.release()
-        super.onDestroy()
+    override fun onStart() {
+        super.onStart()
+        session.onChanged = ::render
+        session.onMessage = toast::show
+        render()
     }
 
-    private fun onPickupState(state: PickupState) = runOnUiThread {
-        pickupState = state
-        renderPickup()
+    override fun onStop() {
+        session.onChanged = null
+        session.onMessage = null
+        super.onStop()
+    }
+
+    private fun render() {
         renderMember()
+        renderPickup()
     }
 
     private fun renderMember() {
-        val invite = sonInvite
+        val invite = session.inviteOf(son)
         val joined = invite?.status == Invite.Status.ACCEPTED
         val (status, dotColor) = when {
             invite == null -> "아직 가족 그룹에 초대하지 않았어요" to CoreR.color.pleos_text_quaternary
             invite.status == Invite.Status.PENDING -> "초대 수락을 기다리는 중" to CoreR.color.pleos_text_quaternary
             invite.status == Invite.Status.DECLINED -> "초대를 거절했어요" to CoreR.color.pleos_informative_negative
-            else -> when (sonPermission) {
+            else -> when (session.permissionOf(son)) {
                 SharePermission.ALWAYS -> "위치 공유 · 항상 허용" to CoreR.color.pleos_informative_active
                 SharePermission.TEMPORARY -> "위치 공유 · 일시적 허용 (픽업 때 요청)" to CoreR.color.pleos_informative_positive
                 SharePermission.OFF -> "위치 공유 꺼짐" to CoreR.color.pleos_text_quaternary
@@ -165,13 +96,12 @@ class MainActivity : AppCompatActivity() {
         inviteButton.isEnabled = invite?.status != Invite.Status.PENDING
         inviteButton.setText(if (invite?.status == Invite.Status.PENDING) R.string.action_invite_pending else R.string.action_invite)
 
-        val idle = pickupState is PickupState.Idle || pickupState is PickupState.Completed
         startPickupButton.visibility = if (joined) View.VISIBLE else View.GONE
-        startPickupButton.isEnabled = naviConnected && idle
+        startPickupButton.isEnabled = session.naviConnected && !session.isPickupBusy
     }
 
     private fun renderPickup() {
-        val state = pickupState
+        val state = session.pickupState
         pickupProgress.visibility = if (state is PickupState.WaitingForAcceptance) View.VISIBLE else View.GONE
         pickupMetrics.visibility = if (state is PickupState.OnTheWay) View.VISIBLE else View.GONE
         pickupActionButton.visibility = when (state) {
@@ -208,11 +138,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showMessage(message: String) {
-        Log.d(TAG, message)
-        runOnUiThread { toast.show(message) }
-    }
-
     private fun colorList(@ColorRes color: Int) = ColorStateList.valueOf(ContextCompat.getColor(this, color))
 
     private fun timeAgo(at: Long): String {
@@ -222,9 +147,5 @@ class MainActivity : AppCompatActivity() {
             seconds < 60 -> "${seconds}초 전"
             else -> "${seconds / 60}분 전"
         }
-    }
-
-    companion object {
-        private const val TAG = "PleosFinder"
     }
 }
