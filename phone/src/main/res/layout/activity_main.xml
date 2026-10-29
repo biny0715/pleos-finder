@@ -38,6 +38,29 @@
                     android:textAppearance="@style/TextAppearance.Pleos.Label" />
             </LinearLayout>
 
+            <!-- 지금 내 위치를 보내고 있는지 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/shareDot"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/pleos_dot" />
+
+                <TextView
+                    android:id="@+id/shareText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+            </LinearLayout>
+
             <!-- 가족 그룹 초대 -->
             <LinearLayout
                 android:id="@+id/inviteCard"
@@ -138,12 +161,14 @@
                     android:text="@string/action_decline_request" />
             </LinearLayout>
 
-            <!-- 픽업 현황 -->
+            <!-- 픽업: 누군가 픽업하러 올 때만 -->
             <LinearLayout
+                android:id="@+id/pickupCard"
                 style="@style/Widget.Pleos.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/pleos_gap">
+                android:layout_marginBottom="@dimen/pleos_gap"
+                android:visibility="gone">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -213,67 +238,42 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 그룹: 받은 초대와 참여한 그룹 -->
+            <!-- 가족 · 친구 · 그룹: 각 패널은 제목 줄 + 카드 -->
+            <include
+                android:id="@+id/familyHeader"
+                layout="@layout/item_section_header" />
+
             <LinearLayout
+                android:id="@+id/familyList"
                 style="@style/Widget.Pleos.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="@dimen/pleos_gap">
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/section_groups"
-                    android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+            <include
+                android:id="@+id/friendHeader"
+                layout="@layout/item_section_header" />
 
-                <LinearLayout
-                    android:id="@+id/groupList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:orientation="vertical" />
-            </LinearLayout>
-
-            <!-- 내 위치 공유 설정: 연결된 상대별 -->
             <LinearLayout
+                android:id="@+id/friendList"
                 style="@style/Widget.Pleos.Card"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/section_my_sharing"
-                    android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+            <include
+                android:id="@+id/groupHeader"
+                layout="@layout/item_section_header" />
 
-                <LinearLayout
-                    android:id="@+id/permissionList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <View
-                        android:id="@+id/shareDot"
-                        android:layout_width="10dp"
-                        android:layout_height="10dp"
-                        android:layout_marginEnd="8dp"
-                        android:background="@drawable/pleos_dot" />
-
-                    <TextView
-                        android:id="@+id/shareText"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
-                </LinearLayout>
-            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/groupList"
+                style="@style/Widget.Pleos.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

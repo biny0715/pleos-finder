@@ -7,6 +7,11 @@
     <string name="section_pickup">픽업</string>
     <string name="section_my_sharing">내 위치 공유</string>
     <string name="section_groups">그룹</string>
+    <string name="section_family">가족</string>
+    <string name="section_friends">친구</string>
+    <string name="action_add_family">+ 가족 초대</string>
+    <string name="action_add_friend">+ 친구 추가</string>
+    <string name="action_add_group">+ 그룹 만들기</string>
     <string name="group_my_sharing">이 그룹에 내 위치 공유</string>
     <string name="action_join_group">참여</string>
     <string name="action_extend_30">+30분 연장</string>

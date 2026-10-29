@@ -16,5 +16,14 @@
         <item name="android:windowLightNavigationBar">@bool/pleos_light_system_bars</item>
         <item name="android:fontFamily">@font/asta_sans_family</item>
         <item name="fontFamily">@font/asta_sans_family</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Pleos.Dialog</item>
+    </style>
+
+    <style name="ThemeOverlay.Pleos.Dialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="dialogCornerRadius">24dp</item>
+        <item name="android:colorBackground">@color/pleos_surface_basic</item>
+        <item name="android:fontFamily">@font/asta_sans_family</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.Pleos.Button.Filled</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.Pleos.Button.Basic</item>
     </style>
 </resources>
