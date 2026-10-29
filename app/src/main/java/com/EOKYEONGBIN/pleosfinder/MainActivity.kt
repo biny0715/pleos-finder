@@ -23,9 +23,11 @@ class MainActivity : AppCompatActivity() {
 
     // NaviHelper 콜백은 메인 스레드가 아닐 수 있어서 화면 갱신은 showStatus 에서 UI 스레드로 넘긴다.
     private val naviEventListener = object : NaviHelperEventListener {
-        override fun onCurrentLocationInfo(currentLocationInfo: CurrentLocationInfo) = showStatus(
-            "차량 위치: ${currentLocationInfo.latitude}, ${currentLocationInfo.longitude}\n${currentLocationInfo.address ?: ""}"
-        )
+        override fun onCurrentLocationInfo(currentLocationInfo: CurrentLocationInfo) {
+            // 픽업 중에는 PickupController 가 주기적으로 조회하므로 화면을 덮어쓰지 않는다.
+            if (pickupController.isActive) return
+            showStatus("차량 위치: ${currentLocationInfo.latitude}, ${currentLocationInfo.longitude}\n${currentLocationInfo.address ?: ""}")
+        }
         override fun onError(naviErrorCode: NaviErrorCode) = showStatus("오류: $naviErrorCode")
     }
 

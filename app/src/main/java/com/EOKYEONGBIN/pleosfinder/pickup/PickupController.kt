@@ -3,6 +3,7 @@ package com.EOKYEONGBIN.pleosfinder.pickup
 import android.location.Location
 import android.os.Handler
 import android.os.Looper
+import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationArrivedInfo
 import ai.pleos.playground.navi.data.DrivingInfo
 import ai.pleos.playground.navi.data.RouteInfo
@@ -14,6 +15,7 @@ import com.EOKYEONGBIN.pleosfinder.core.PickupStatus
 
 /**
  * 픽업 모드: 구성원 위치를 목적지로 길 안내하고, 구성원이 움직이면 목적지를 갱신한다.
+ * 내비의 목적지 도착 이벤트 외에도, 구성원이 차 근처(ARRIVAL_RADIUS_M)로 오면 도착으로 처리한다.
  * 진행 상황은 publishStatus 로 픽업 대상의 폰에 전달한다.
  * NaviHelper 콜백은 바인더 스레드에서 오므로 상태 변경은 모두 메인 스레드로 넘겨 처리한다.
  */
@@ -30,9 +32,19 @@ class PickupController(
     private var member: Member? = null
     private var latestLocation: MemberLocation? = null
     private var routedLocation: MemberLocation? = null
+    private var vehicleLatitude: Double? = null
+    private var vehicleLongitude: Double? = null
     private var lastRouteRequestAt = 0L
     private var remainDistanceMeters: Int? = null
     private var remainTimeSeconds: Int? = null
+
+    private val pollVehicleLocation = object : Runnable {
+        override fun run() {
+            if (member == null) return
+            naviHelper.getCurrentLocationInfo()
+            mainHandler.postDelayed(this, VEHICLE_POLL_MS)
+        }
+    }
 
     val isActive: Boolean get() = member != null
 
@@ -41,20 +53,24 @@ class PickupController(
         member = target
         sendStatus(target, PickupStatus.State.ON_THE_WAY)
         locationSource.start(target, ::onMemberLocation)
+        mainHandler.post(pollVehicleLocation)
         render()
     }
 
     fun stop() {
-        locationSource.stop()
         member?.let { sendStatus(it, PickupStatus.State.CANCELLED) }
         if (routedLocation != null) naviHelper.cancelRoute()
         reset()
     }
 
     private fun reset() {
+        locationSource.stop()
+        mainHandler.removeCallbacks(pollVehicleLocation)
         member = null
         latestLocation = null
         routedLocation = null
+        vehicleLatitude = null
+        vehicleLongitude = null
         lastRouteRequestAt = 0L
         remainDistanceMeters = null
         remainTimeSeconds = null
@@ -63,6 +79,7 @@ class PickupController(
     private fun onMemberLocation(location: MemberLocation) {
         val target = member ?: return
         latestLocation = location
+        if (checkArrival()) return
         if (shouldReroute(location)) {
             naviHelper.requestRoute(
                 RouteInfo(
@@ -83,9 +100,25 @@ class PickupController(
     private fun shouldReroute(location: MemberLocation): Boolean {
         val routed = routedLocation ?: return true
         if (System.currentTimeMillis() - lastRouteRequestAt < MIN_REROUTE_INTERVAL_MS) return false
-        val moved = FloatArray(1)
-        Location.distanceBetween(routed.latitude, routed.longitude, location.latitude, location.longitude, moved)
-        return moved[0] >= REROUTE_DISTANCE_M
+        return distanceMeters(routed.latitude, routed.longitude, location.latitude, location.longitude) >= REROUTE_DISTANCE_M
+    }
+
+    /** 구성원이 차 근처에 있으면 픽업을 완료하고 true 를 돌려준다. */
+    private fun checkArrival(): Boolean {
+        val location = latestLocation ?: return false
+        val latitude = vehicleLatitude ?: return false
+        val longitude = vehicleLongitude ?: return false
+        if (distanceMeters(latitude, longitude, location.latitude, location.longitude) > ARRIVAL_RADIUS_M) return false
+        if (routedLocation != null) naviHelper.cancelRoute()
+        complete()
+        return true
+    }
+
+    private fun complete() {
+        val target = member ?: return
+        sendStatus(target, PickupStatus.State.ARRIVED)
+        reset()
+        onStatus("${target.name} 픽업 완료")
     }
 
     private fun sendStatus(target: Member, state: PickupStatus.State) {
@@ -94,8 +127,8 @@ class PickupController(
                 targetMemberId = target.id,
                 driverName = driver.name,
                 state = state,
-                vehicleLatitude = null,
-                vehicleLongitude = null,
+                vehicleLatitude = vehicleLatitude,
+                vehicleLongitude = vehicleLongitude,
                 remainDistanceMeters = remainDistanceMeters,
                 remainTimeSeconds = remainTimeSeconds,
                 updatedAt = System.currentTimeMillis(),
@@ -114,6 +147,15 @@ class PickupController(
         onStatus("${target.name} 픽업 중\n${target.name} 위치: $position\n$remain")
     }
 
+    override fun onCurrentLocationInfo(currentLocationInfo: CurrentLocationInfo) {
+        mainHandler.post {
+            if (member == null) return@post
+            vehicleLatitude = currentLocationInfo.latitude
+            vehicleLongitude = currentLocationInfo.longitude
+            checkArrival()
+        }
+    }
+
     override fun onDrivingInfo(drivingInfo: DrivingInfo) {
         val destination = drivingInfo.destination
         mainHandler.post {
@@ -128,17 +170,19 @@ class PickupController(
     }
 
     override fun onDestinationArrived(destinationArrivedInfo: DestinationArrivedInfo) {
-        mainHandler.post {
-            val target = member ?: return@post
-            locationSource.stop()
-            sendStatus(target, PickupStatus.State.ARRIVED)
-            reset()
-            onStatus("${target.name} 픽업 완료")
-        }
+        mainHandler.post { complete() }
+    }
+
+    private fun distanceMeters(fromLat: Double, fromLng: Double, toLat: Double, toLng: Double): Float {
+        val result = FloatArray(1)
+        Location.distanceBetween(fromLat, fromLng, toLat, toLng, result)
+        return result[0]
     }
 
     private companion object {
         const val REROUTE_DISTANCE_M = 30f
         const val MIN_REROUTE_INTERVAL_MS = 10_000L
+        const val ARRIVAL_RADIUS_M = 50f
+        const val VEHICLE_POLL_MS = 5_000L
     }
 }
