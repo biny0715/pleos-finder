@@ -13,6 +13,7 @@ import com.google.firebase.database.ValueEventListener
  *   vehicleLocations/{vehicleId} = { driverId, latitude, longitude, updatedAt }      차량 위치(운전자 기준)
  *   connections/{accountId}/{otherId} = { relation, status, inviterId, updatedAt }    가족·친구 연결
  *   permissions/{ownerId}/{viewerId} = "ALWAYS" | "TEMPORARY" | "OFF"                 1:1 허용 방식
+ *   vehicleShares/{ownerId}/{viewerId} = until                                       차량끼리 위치 공유(시간 제한)
  *   shareRequests/{ownerId} = { requesterId, requesterName, state, updatedAt }       일시적 허용 요청
  *   pickups/{targetMemberId} = { driverName, state, vehicleLatitude, ..., updatedAt }
  *   finderGroups/{groupId} = { name, ownerId, members/{accountId} = { status, share, shareUntil } }
@@ -115,6 +116,16 @@ class FirebaseFinderRepository(
         }
 
     private fun permissionOf(name: String?) = SharePermission.entries.firstOrNull { it.name == name } ?: SharePermission.OFF
+
+    override fun setVehicleShare(ownerId: String, viewerId: String, until: Long) {
+        val ref = root.child("vehicleShares").child(ownerId).child(viewerId)
+        if (until <= 0L) ref.removeValue() else ref.setValue(until)
+    }
+
+    override fun observeVehicleShares(ownerId: String, onUpdate: (Map<String, Long>) -> Unit): Subscription =
+        observe(root.child("vehicleShares").child(ownerId)) { snapshot ->
+            onUpdate(snapshot.children.mapNotNull { child -> child.key?.let { key -> (child.value as? Number)?.toLong()?.let { key to it } } }.toMap())
+        }
 
     override fun publishShareRequest(request: ShareRequest) {
         root.child("shareRequests").child(request.ownerId).setValue(

@@ -2,6 +2,8 @@ package com.EOKYEONGBIN.pleosfinder
 
 import android.content.res.ColorStateList
 import android.os.Bundle
+import android.transition.AutoTransition
+import android.transition.TransitionManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,7 +40,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var profileName: TextView
     private lateinit var listContainer: LinearLayout
 
-    private lateinit var pickupPanel: View
+    private lateinit var pickupStrip: View
+    private lateinit var contentRow: ViewGroup
     private lateinit var pickupHeadline: TextView
     private lateinit var pickupDetail: TextView
     private lateinit var pickupProgress: View
@@ -74,7 +77,8 @@ class MainActivity : AppCompatActivity() {
         profileAvatar = findViewById(R.id.profileAvatar)
         profileName = findViewById(R.id.profileName)
         listContainer = findViewById(R.id.listContainer)
-        pickupPanel = findViewById(R.id.pickupPanel)
+        pickupStrip = findViewById(R.id.pickupStrip)
+        contentRow = findViewById(R.id.contentRow)
         pickupHeadline = findViewById(R.id.pickupHeadline)
         pickupDetail = findViewById(R.id.pickupDetail)
         pickupProgress = findViewById(R.id.pickupProgress)
@@ -134,11 +138,16 @@ class MainActivity : AppCompatActivity() {
         profileAvatar.text = session.me.name.take(1)
         profileName.text = "${session.me.name} · ${session.vehicle.name} 운전 중"
         renderList()
+        renderPickup()
         val group = openGroup()
         if (group == null) openGroupId = null
-        pickupPanel.visibility = if (group == null) View.VISIBLE else View.GONE
-        groupPanel.visibility = if (group == null) View.GONE else View.VISIBLE
-        if (group == null) renderPickup() else renderGroup(group)
+        val split = group != null
+        if (split != (groupPanel.visibility == View.VISIBLE)) {
+            // 한 칸 ↔ 두 칸 전환을 부드럽게 (ivi_motion_duration_medium1 = 250ms)
+            TransitionManager.beginDelayedTransition(contentRow, AutoTransition().setDuration(250))
+            groupPanel.visibility = if (split) View.VISIBLE else View.GONE
+        }
+        if (group != null) renderGroup(group)
     }
 
     private fun openGroup(): FinderGroup? = openGroupId?.let { id -> session.myGroups().firstOrNull { it.id == id } }
@@ -200,7 +209,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun contactStatus(contact: Contact): Pair<String, Int> {
         val state = session.pickupState
-        val carText = session.drivingVehicleOf(contact.member)?.let { (v, location) -> " · ${v.name} 운전 중 ${ago(location.updatedAt)}" } ?: ""
+        val shareUntil = session.myVehicleShareUntil(contact.member)
+        val carText = (session.drivingVehicleOf(contact.member)?.let { (v, location) -> " · ${v.name} 운전 중 ${ago(location.updatedAt)}" } ?: "") +
+            (shareUntil?.let { " · 차량 위치 서로 공유 ~${TIME.format(Date(it))}" } ?: "")
         return when {
             contact.connection.isIncomingInvite -> "초대를 받았어요" to CoreR.color.pleos_informative_positive
             !contact.isAccepted -> "초대 수락을 기다리는 중" to CoreR.color.pleos_text_quaternary
@@ -237,11 +248,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        val car = session.drivingVehicleOf(contact.member)?.first
-        if (car != null) {
-            actions.addAction(getString(R.string.action_navigate_car), filled = !contact.hasFinderPhone) {
-                session.navigateToVehicle(contact.member, car)
-            }
+        if (contact.vehicles.isNotEmpty()) {
+            val until = session.myVehicleShareUntil(contact.member)
+            val label = if (until == null) getString(R.string.action_share_vehicle) else "공유 중 ~${TIME.format(Date(until))}"
+            actions.addAction(label, filled = !contact.hasFinderPhone && until == null) { showVehicleShare(contact.member) }
         }
         if (actions.childCount == 0) actions.addAction("공유된 위치가 없어요", filled = false, enabled = false) {}
     }
@@ -304,24 +314,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderPickup() {
         val state = session.pickupState
+        // 픽업 줄은 픽업을 기다리거나 가는 중일 때만 보인다. 완료는 토스트로 알린다.
+        val visible = state is PickupState.WaitingForAcceptance || state is PickupState.OnTheWay
+        pickupStrip.visibility = if (visible) View.VISIBLE else View.GONE
         pickupProgress.visibility = if (state is PickupState.WaitingForAcceptance) View.VISIBLE else View.GONE
         pickupMetrics.visibility = if (state is PickupState.OnTheWay) View.VISIBLE else View.GONE
-        pickupActionButton.visibility = when (state) {
-            is PickupState.WaitingForAcceptance -> View.VISIBLE.also { pickupActionButton.setText(R.string.action_cancel_request) }
-            is PickupState.OnTheWay -> View.VISIBLE.also { pickupActionButton.setText(R.string.action_stop_pickup) }
-            else -> View.GONE
-        }
         when (state) {
-            PickupState.Idle -> {
-                pickupHeadline.text = "진행 중인 픽업 없음"
-                pickupDetail.text = "왼쪽에서 가족이나 친구를 누르고 '픽업'을 누르면 그 사람의 위치로 바로 길 안내를 시작해요."
-            }
             is PickupState.WaitingForAcceptance -> {
                 pickupHeadline.text = "${state.target.name}의 수락을 기다리는 중"
                 pickupDetail.text = "${state.target.name} 폰에 위치 공유를 요청했어요. 수락하면 바로 길 안내를 시작해요."
+                pickupActionButton.setText(R.string.action_cancel_request)
             }
             is PickupState.OnTheWay -> {
-                pickupHeadline.text = "${state.target.name}에게 가는 중"
+                pickupHeadline.text = "${state.target.name} 픽업하러 가는 중"
                 val location = state.targetLocation
                 pickupDetail.text = if (location == null) "${state.target.name}의 위치를 받는 중이에요."
                 else "${state.target.name}의 위치로 안내 중 · ${ago(location.updatedAt)} 갱신"
@@ -329,15 +334,13 @@ class MainActivity : AppCompatActivity() {
                 val time = state.remainTimeSeconds
                 remainDistance.text = if (distance == null) "–" else "%.1fkm".format(distance / 1000.0)
                 remainTime.text = if (time == null) "–" else "${(time + 59) / 60}분"
+                pickupActionButton.setText(R.string.action_stop_pickup)
             }
-            is PickupState.Completed -> {
-                pickupHeadline.text = "${state.target.name} 픽업 완료"
-                pickupDetail.text = "${state.target.name}에게 도착 알림을 보냈어요."
-            }
+            else -> Unit
         }
     }
 
-    // ---- 오른쪽: 그룹 상세 ----
+    // ---- 그룹 상세(두 칸일 때 오른쪽) ----
 
     private fun renderGroup(group: FinderGroup) {
         val now = System.currentTimeMillis()
@@ -444,6 +447,53 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    /** 차량끼리 위치 공유는 항상 일시적: 오늘 하루만, 또는 30분 단위로 최대 24시간 */
+    private fun showVehicleShare(member: Member) {
+        val until = session.myVehicleShareUntil(member)
+        val endOfToday = java.util.Calendar.getInstance().apply {
+            add(java.util.Calendar.DAY_OF_YEAR, 1)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val items = mutableListOf("오늘 하루만 공유 (오늘 밤 12시까지)", "시간 설정 (30분 단위, 최대 24시간)")
+        if (until != null) items += "공유 중지"
+        AlertDialog.Builder(this)
+            .setTitle("${member.name}와(과) 차량 위치 공유")
+            .setItems(items.toTypedArray()) { _, which ->
+                when (which) {
+                    0 -> session.shareVehicle(member, endOfToday)
+                    1 -> showShareDuration(member)
+                    else -> session.stopVehicleShare(member)
+                }
+            }
+            .show()
+    }
+
+    private fun showShareDuration(member: Member) {
+        val view = inflater.inflate(R.layout.dialog_share_duration, null)
+        val value = view.findViewById<TextView>(R.id.durationValue)
+        val endText = view.findViewById<TextView>(R.id.durationEnd)
+        var steps = 2 // 30분 × 2 = 1시간부터
+        fun update() {
+            val minutes = steps * 30
+            value.text = if (minutes % 60 == 0) "${minutes / 60}시간" else if (minutes < 60) "${minutes}분" else "${minutes / 60}시간 ${minutes % 60}분"
+            endText.text = "${TIME.format(Date(System.currentTimeMillis() + minutes * 60_000L))}까지 서로 공유"
+            view.findViewById<View>(R.id.durationMinus).isEnabled = steps > 1
+            view.findViewById<View>(R.id.durationPlus).isEnabled = steps < MAX_SHARE_STEPS
+        }
+        view.findViewById<View>(R.id.durationMinus).setOnClickListener { steps--; update() }
+        view.findViewById<View>(R.id.durationPlus).setOnClickListener { steps++; update() }
+        update()
+        AlertDialog.Builder(this)
+            .setTitle("${member.name}와(과) 공유할 시간")
+            .setView(view)
+            .setPositiveButton("공유 시작") { _, _ -> session.shareVehicle(member, System.currentTimeMillis() + steps * VehicleSession.TEMPORARY_STEP_MS) }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
     /** 연락처 목록 한 줄: 이름 · 설명 · 사람/차량 */
     private fun contactLabel(member: Member): String {
         val account = DemoDirectory.account(member.id)
@@ -470,5 +520,6 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         val TIME = SimpleDateFormat("a h:mm", Locale.KOREA)
+        const val MAX_SHARE_STEPS = 48 // 30분 × 48 = 24시간
     }
 }

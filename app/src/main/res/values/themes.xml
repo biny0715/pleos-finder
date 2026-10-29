@@ -14,5 +14,27 @@
         <item name="android:textColorPrimary">@color/pleos_text_primary</item>
         <item name="android:textColorSecondary">@color/pleos_text_secondary</item>
         <item name="android:statusBarColor">@color/pleos_background_primary</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Pleos.Dialog</item>
+    </style>
+
+    <!-- 대화상자도 차량 화면 규격으로: 제목 Title, 목록 Body(줄 높이 100), Pleos 버튼, 모서리 48 (System popup) -->
+    <style name="ThemeOverlay.Pleos.Dialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="android:windowTitleStyle">@style/Pleos.DialogTitle</item>
+        <item name="android:textAppearanceListItemSmall">@style/TextAppearance.Pleos.Body</item>
+        <item name="textAppearanceListItemSmall">@style/TextAppearance.Pleos.Body</item>
+        <item name="listPreferredItemHeightSmall">100dp</item>
+        <item name="listPreferredItemPaddingLeft">48dp</item>
+        <item name="listPreferredItemPaddingRight">48dp</item>
+        <item name="dialogPreferredPadding">48dp</item>
+        <item name="android:windowMinWidthMajor">50%</item>
+        <item name="android:windowMinWidthMinor">50%</item>
+        <item name="dialogCornerRadius">48dp</item>
+        <item name="android:colorBackground">@color/pleos_surface_basic</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.Pleos.Button.Filled</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.Pleos.Button.Basic</item>
+    </style>
+
+    <style name="Pleos.DialogTitle" parent="">
+        <item name="android:textAppearance">@style/TextAppearance.Pleos.TitleSmall</item>
     </style>
 </resources>

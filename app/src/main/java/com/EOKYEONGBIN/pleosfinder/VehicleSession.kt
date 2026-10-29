@@ -6,7 +6,6 @@ import android.os.Looper
 import android.util.Log
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.data.CurrentLocationInfo
-import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import com.EOKYEONGBIN.pleosfinder.core.Connection
@@ -70,6 +69,12 @@ class VehicleSession(context: Context) {
     private var connections: List<Connection> = emptyList()
     private val permissionsToMe = mutableMapOf<String, SharePermission>()
     private val phoneLocations = mutableMapOf<String, MemberLocation>()
+
+    /** 상대가 나에게 차량 위치를 보여 주는 종료 시각(상대 id → until) */
+    private val vehicleSharesToMe = mutableMapOf<String, Long>()
+
+    /** 내가 상대에게 내 차량 위치를 보여 주는 종료 시각(상대 id → until) */
+    private var myVehicleShares: Map<String, Long> = emptyMap()
     var vehicleLocations: Map<String, VehicleLocation> = emptyMap()
         private set
     private var allGroups: List<FinderGroup> = emptyList()
@@ -141,6 +146,8 @@ class VehicleSession(context: Context) {
         connections = emptyList()
         permissionsToMe.clear()
         phoneLocations.clear()
+        vehicleSharesToMe.clear()
+        myVehicleShares = emptyMap()
         connectionsLoaded = false
 
         me = driver
@@ -173,13 +180,19 @@ class VehicleSession(context: Context) {
         pickupState = PickupState.Idle
     }
 
-    private fun subscribeAccount(): Subscription = repository.observeConnections(me.id) { list ->
-        connections = list
-        syncContactSubscriptions()
-        connectionsLoaded = true
-        flushReady()
-        notifyChanged()
-    }
+    private fun subscribeAccount(): List<Subscription> = listOf(
+        repository.observeConnections(me.id) { list ->
+            connections = list
+            syncContactSubscriptions()
+            connectionsLoaded = true
+            flushReady()
+            notifyChanged()
+        },
+        repository.observeVehicleShares(me.id) {
+            myVehicleShares = it
+            notifyChanged()
+        },
+    )
 
     /** 연결된 상대마다 허용 방식과 폰 위치를 구독한다. */
     private fun syncContactSubscriptions() {
@@ -188,6 +201,7 @@ class VehicleSession(context: Context) {
             contactSubscriptions.remove(id)?.forEach { it.cancel() }
             permissionsToMe.remove(id)
             phoneLocations.remove(id)
+            vehicleSharesToMe.remove(id)
         }
         (ids - contactSubscriptions.keys).forEach { id ->
             contactSubscriptions[id] = listOf(
@@ -197,6 +211,11 @@ class VehicleSession(context: Context) {
                     notifyChanged()
                 },
                 repository.observeMemberLocation(id) { phoneLocations[id] = it },
+                repository.observeVehicleShares(id) { shares ->
+                    val until = shares[me.id]
+                    if (until == null) vehicleSharesToMe.remove(id) else vehicleSharesToMe[id] = until
+                    notifyChanged()
+                },
             )
         }
     }
@@ -243,6 +262,7 @@ class VehicleSession(context: Context) {
         val driverId = location.driverId
         if (driverId == me.id) return location
         if (permissionsToMe[driverId] == SharePermission.ALWAYS && isConnected(DemoDirectory.member(driverId))) return location
+        if ((vehicleSharesToMe[driverId] ?: 0L) > System.currentTimeMillis()) return location
         val sharedInGroup = myGroups().any { group ->
             group.memberOf(me.id)?.status == InviteStatus.ACCEPTED && group.memberOf(driverId)?.isSharing() == true
         }
@@ -332,23 +352,29 @@ class VehicleSession(context: Context) {
         }
     }
 
-    /** 상대 차량의 마지막 위치로 길 안내한다(합류). */
-    fun navigateToVehicle(owner: Member, vehicle: VehicleInfo) {
-        val location = visibleVehicleLocation(vehicle) ?: run {
-            showMessage("${owner.name}의 ${vehicle.name} 위치가 공유되지 않았어요.")
-            return
-        }
-        naviHelper.requestRoute(
-            RouteInfo(
-                latitude = location.latitude,
-                longitude = location.longitude,
-                poiName = "${owner.name}의 ${vehicle.name}",
-                poiId = "",
-                poiSubId = "0",
-                address = "",
-            )
-        )
-        showMessage("${owner.name}의 ${vehicle.name}(으)로 길 안내를 시작해요.")
+    // ---- 차량끼리 위치 공유 ----
+
+    /** 내 차량 위치를 이 상대에게 보여 주는 중이면 종료 시각, 아니면 null */
+    fun myVehicleShareUntil(member: Member): Long? = myVehicleShares[member.id]?.takeIf { it > System.currentTimeMillis() }
+
+    /** 상대가 자기 차량 위치를 나에게 보여 주는 중이면 종료 시각, 아니면 null */
+    fun vehicleShareToMeUntil(member: Member): Long? = vehicleSharesToMe[member.id]?.takeIf { it > System.currentTimeMillis() }
+
+    /**
+     * 차량끼리 위치 공유(항상 일시적). 내가 운전하는 차량 위치를 until 시각까지 상대에게 보여 주고,
+     * 상대도 같은 시간 동안 자기 차량 위치를 나에게 보여 주는 서로 공유다.
+     * 출품본은 상대 차량을 시연 데이터로 두므로 상대 쪽 공유도 같은 시각으로 함께 기록한다.
+     */
+    fun shareVehicle(member: Member, until: Long) {
+        repository.setVehicleShare(me.id, member.id, until)
+        repository.setVehicleShare(member.id, me.id, until)
+        showMessage("${member.name}와(과) ${TIME.format(java.util.Date(until))}까지 차량 위치를 서로 공유해요.")
+    }
+
+    fun stopVehicleShare(member: Member) {
+        repository.setVehicleShare(me.id, member.id, 0L)
+        repository.setVehicleShare(member.id, me.id, 0L)
+        showMessage("${member.name}와(과)의 차량 위치 공유를 끝냈어요.")
     }
 
     /** 서버에서 연결 정보를 처음 받아 올 때까지 기다린다. 앱 프로세스가 Gleo 호출로 막 시작된 경우에 쓴다. */
@@ -388,6 +414,7 @@ class VehicleSession(context: Context) {
 
     private fun onPickupState(state: PickupState) = mainHandler.post {
         pickupState = state
+        if (state is PickupState.Completed) showMessage("${state.target.name} 픽업 완료 · 도착 알림을 보냈어요.")
         notifyChanged()
     }
 
@@ -405,6 +432,7 @@ class VehicleSession(context: Context) {
         private const val KEY_DRIVER = "driver"
         private const val VEHICLE_PUBLISH_MS = 15_000L
         const val TEMPORARY_STEP_MS = 30 * 60_000L
+        private val TIME = java.text.SimpleDateFormat("a h:mm", java.util.Locale.KOREA)
     }
 }
 

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 차량 위치 공유 시간: 30분 단위로 줄이고 늘린다(최대 24시간) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:padding="40dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/durationMinus"
+            style="@style/Widget.Pleos.Button.Basic"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="160dp"
+            android:text="@string/action_minus_30" />
+
+        <TextView
+            android:id="@+id/durationValue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:minWidth="320dp"
+            android:textAppearance="@style/TextAppearance.Pleos.Headline" />
+
+        <Button
+            android:id="@+id/durationPlus"
+            style="@style/Widget.Pleos.Button.Basic"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="160dp"
+            android:text="@string/action_extend_30" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/durationEnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textAppearance="@style/TextAppearance.Pleos.Body" />
+</LinearLayout>

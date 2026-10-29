@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   차량 앱 (Connect-S-17 앱 창 1700×1184dp, 가로).
-  위: 제목 + 운전자 프로필 / 왼쪽: 가족·친구·그룹 패널(스크롤) / 오른쪽: 픽업 진행 또는 그룹 상세 / 하단 가운데: Pleos 토스트
+  위: 제목 + 운전자 프로필 / 그 아래: 픽업 중일 때만 보이는 픽업 줄(항상 한 칸)
+  본문: 기본은 목록 한 칸, 그룹을 열면 목록 | 그룹 상세 두 칸 / 하단 가운데: Pleos 토스트
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -64,18 +65,118 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- 픽업 줄: 픽업 중일 때만, 화면이 나뉘어도 한 칸 그대로 -->
         <LinearLayout
+            android:id="@+id/pickupStrip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/pleos_bg_card"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="40dp"
+            android:paddingTop="24dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="24dp"
+            android:visibility="gone">
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/pickupProgress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="24dp"
+                android:indeterminate="true"
+                android:visibility="gone"
+                app:indicatorColor="@color/pleos_text_tertiary"
+                app:indicatorSize="48dp"
+                app:trackThickness="6dp" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/pickupHeadline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Pleos.Title" />
+
+                <TextView
+                    android:id="@+id/pickupDetail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/pickupMetrics"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="180dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/remainDistance"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Pleos.Title" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_remain_distance"
+                        android:textAppearance="@style/TextAppearance.Pleos.Label" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="180dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/remainTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Pleos.Title" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_remain_time"
+                        android:textAppearance="@style/TextAppearance.Pleos.Label" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/pickupActionButton"
+                style="@style/Widget.Pleos.Button.Basic"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp" />
+        </LinearLayout>
+
+        <!-- 본문: 목록 | (그룹을 열면) 그룹 상세 -->
+        <LinearLayout
+            android:id="@+id/contentRow"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="8dp"
             android:layout_weight="1"
             android:orientation="horizontal">
 
-            <!-- 가족 · 친구 · 그룹 -->
             <ScrollView
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="5"
+                android:layout_weight="1"
                 android:scrollbars="none">
 
                 <LinearLayout
@@ -85,124 +186,15 @@
                     android:orientation="vertical" />
             </ScrollView>
 
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_marginStart="32dp"
-                android:layout_marginTop="32dp"
-                android:layout_weight="7">
-
-                <!-- 픽업 -->
-                <LinearLayout
-                    android:id="@+id/pickupPanel"
-                    style="@style/Widget.Pleos.Card"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/section_pickup"
-                        android:textAppearance="@style/TextAppearance.Pleos.Label" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/pickupHeadline"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:textAppearance="@style/TextAppearance.Pleos.Headline" />
-
-                        <com.google.android.material.progressindicator.CircularProgressIndicator
-                            android:id="@+id/pickupProgress"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:indeterminate="true"
-                            android:visibility="gone"
-                            app:indicatorColor="@color/pleos_text_tertiary"
-                            app:indicatorSize="56dp"
-                            app:trackThickness="6dp" />
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/pickupDetail"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:textAppearance="@style/TextAppearance.Pleos.Body" />
-
-                    <LinearLayout
-                        android:id="@+id/pickupMetrics"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="48dp"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:id="@+id/remainDistance"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="@style/TextAppearance.Pleos.Headline" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/label_remain_distance"
-                                android:textAppearance="@style/TextAppearance.Pleos.Label" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:id="@+id/remainTime"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="@style/TextAppearance.Pleos.Headline" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/label_remain_time"
-                                android:textAppearance="@style/TextAppearance.Pleos.Label" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <Space
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
-
-                    <Button
-                        android:id="@+id/pickupActionButton"
-                        style="@style/Widget.Pleos.Button.Basic"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:visibility="gone" />
-                </LinearLayout>
-
                 <!-- 그룹 상세 -->
                 <LinearLayout
                     android:id="@+id/groupPanel"
                     style="@style/Widget.Pleos.Card"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="match_parent"
+                    android:layout_marginStart="32dp"
+                    android:layout_marginTop="32dp"
+                    android:layout_weight="1"
                     android:visibility="gone">
 
                     <LinearLayout
@@ -338,7 +330,6 @@
                             android:text="@string/action_invite_from_contacts" />
                     </LinearLayout>
                 </LinearLayout>
-            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 

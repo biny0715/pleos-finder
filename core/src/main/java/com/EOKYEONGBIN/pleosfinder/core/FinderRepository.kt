@@ -27,6 +27,15 @@ interface FinderRepository {
     /** ownerId 가 상대별로 정한 허용 방식 전체(viewerId → 허용 방식) */
     fun observePermissions(ownerId: String, onUpdate: (Map<String, SharePermission>) -> Unit): Subscription
 
+    /**
+     * 차량끼리 위치 공유: ownerId 가 운전하는 차량 위치를 viewerId 에게 until 시각까지 보여 준다(항상 일시적).
+     * until = 0 이면 공유 중지.
+     */
+    fun setVehicleShare(ownerId: String, viewerId: String, until: Long)
+
+    /** ownerId 가 상대별로 정한 차량 공유 종료 시각(viewerId → until) */
+    fun observeVehicleShares(ownerId: String, onUpdate: (Map<String, Long>) -> Unit): Subscription
+
     fun publishShareRequest(request: ShareRequest)
     fun observeShareRequest(ownerId: String, onUpdate: (ShareRequest?) -> Unit): Subscription
 

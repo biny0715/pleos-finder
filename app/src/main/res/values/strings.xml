@@ -4,12 +4,12 @@
     <string name="section_family">가족</string>
     <string name="section_friends">친구</string>
     <string name="section_groups">그룹</string>
-    <string name="section_pickup">픽업</string>
     <string name="action_add_family">+ 가족 초대</string>
     <string name="action_add_friend">+ 친구 추가</string>
     <string name="action_add_group">+ 그룹 만들기</string>
     <string name="action_pickup">픽업</string>
-    <string name="action_navigate_car">차로 길 안내</string>
+    <string name="action_share_vehicle">위치 공유</string>
+    <string name="action_minus_30">−30분</string>
     <string name="action_accept">수락</string>
     <string name="action_decline">거절</string>
     <string name="action_stop_pickup">픽업 종료</string>
