@@ -6,6 +6,7 @@
 
 - 공모 분야: 패밀리·동승자 케어
 - 플랫폼: Pleos Connect (차량 앱) + Android (폰 앱)
+- 기획서: [docs/기획서.md](docs/기획서.md)
 
 ## APK
 
