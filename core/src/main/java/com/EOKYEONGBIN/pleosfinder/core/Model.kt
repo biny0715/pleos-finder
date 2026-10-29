@@ -21,6 +21,13 @@ data class PickupStatus(
     val updatedAt: Long,
 ) {
     enum class State { ON_THE_WAY, ARRIVED, CANCELLED }
+
+    /** 지난 픽업의 결과가 서버에 남아 있어도 오래된 것은 화면·알림에 쓰지 않는다. */
+    fun isStale(now: Long = System.currentTimeMillis()): Boolean = now - updatedAt > STALE_MS
+
+    companion object {
+        const val STALE_MS = 10 * 60_000L
+    }
 }
 
 /** 서버 연동 전까지 쓰는 시연용 가족 그룹 */

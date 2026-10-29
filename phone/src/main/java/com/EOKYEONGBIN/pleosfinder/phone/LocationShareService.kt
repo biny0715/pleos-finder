@@ -58,7 +58,7 @@ class LocationShareService : Service(), LocationListener {
     private fun onPickupStatus(status: PickupStatus) {
         if (status.state == lastPickupState) return
         lastPickupState = status.state
-        if (System.currentTimeMillis() - status.updatedAt > STALE_PICKUP_MS) return
+        if (status.isStale()) return
         val text = when (status.state) {
             PickupStatus.State.ON_THE_WAY -> "${status.driverName}가 픽업하러 오고 있어요"
             PickupStatus.State.ARRIVED -> "${status.driverName}가 도착했어요"
@@ -125,7 +125,6 @@ class LocationShareService : Service(), LocationListener {
         private const val NOTIFICATION_ID = 1
         private const val PICKUP_CHANNEL_ID = "pickup"
         private const val PICKUP_NOTIFICATION_ID = 2
-        private const val STALE_PICKUP_MS = 10 * 60_000L
         private const val MIN_INTERVAL_MS = 5_000L
         private const val MIN_DISTANCE_M = 10f
 

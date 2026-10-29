@@ -80,6 +80,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderPickup(status: PickupStatus) {
+        if (status.isStale()) {
+            pickupText.setText(R.string.pickup_none)
+            return
+        }
         pickupText.text = when (status.state) {
             PickupStatus.State.ON_THE_WAY -> {
                 val distance = status.remainDistanceMeters
