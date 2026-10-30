@@ -7,6 +7,7 @@
     android:fitsSystemWindows="true">
 
     <ScrollView
+        android:id="@+id/mainScroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true">
@@ -62,19 +63,11 @@
             </LinearLayout>
 
             <!-- 지도: 나에게 공유된 사람·차량, 픽업 중이면 차와 나를 잇는 선 -->
-            <FrameLayout
-                android:id="@+id/mapCard"
+            <include
+                layout="@layout/finder_map_card"
                 android:layout_width="match_parent"
                 android:layout_height="260dp"
-                android:layout_marginBottom="@dimen/pleos_gap"
-                android:background="@drawable/pleos_bg_card"
-                android:clipToOutline="true">
-
-                <org.maplibre.android.maps.MapView
-                    android:id="@+id/mapView"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
-            </FrameLayout>
+                android:layout_marginBottom="@dimen/pleos_gap" />
 
             <!-- 가족 그룹 초대 -->
             <LinearLayout

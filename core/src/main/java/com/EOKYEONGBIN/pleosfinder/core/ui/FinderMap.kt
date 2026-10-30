@@ -50,6 +50,7 @@ data class MapMarker(val id: String, val label: String, val kind: Kind, val lati
  * 나에게 공유된 사람·차량을 표시하고, 픽업 중에는 차와 기다리는 사람을 잇는 선을 그린다.
  * 기본 내비 경로는 외부 앱이 받을 수 없어 선은 직선으로 그린다(기획서 5장).
  * 마커 크기는 앱마다 다른 Pleos dimens(pleos_text_label: 차량 24sp / 폰 13sp)를 따른다.
+ * 기본 화면은 내 위치를 가깝게 보여 주고, 지도 카드(finder_map_card)의 '내 위치 보기' 버튼으로 언제든 돌아온다.
  */
 class FinderMap(private val mapView: MapView, private val typeface: Typeface? = null) {
 
@@ -61,10 +62,14 @@ class FinderMap(private val mapView: MapView, private val typeface: Typeface? = 
     private var route: List<MapMarker>? = null
     private val addedImages = mutableSetOf<String>()
 
-    /** 마커 구성이 바뀔 때만 화면을 맞춘다(사용자가 옮긴 지도를 매번 되돌리지 않도록). */
-    private var framedKey: String? = null
+    /**
+     * 자동으로 맞춘 화면의 기준(내 위치 / 픽업 경로 / 전체). 기준이 바뀔 때만 다시 맞춰,
+     * 사용자가 옮겨 본 지도를 위치가 갱신될 때마다 되돌리지 않는다.
+     */
+    private var framed: String? = null
 
     init {
+        (mapView.parent as? android.view.View)?.findViewById<android.view.View>(R.id.myLocationButton)?.setOnClickListener { showMe() }
         // 스크롤 화면 안의 지도라, 지도를 끄는 동안은 화면 스크롤이 가로채지 않게 한다.
         @SuppressLint("ClickableViewAccessibility")
         mapView.setOnTouchListener { view, event ->
@@ -126,22 +131,46 @@ class FinderMap(private val mapView: MapView, private val typeface: Typeface? = 
         frame()
     }
 
+    /** 내 위치(폰의 나, 차량의 내 차)로 돌아온다. */
+    fun showMe() {
+        val me = me() ?: return
+        map?.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(me.latitude, me.longitude), ME_ZOOM))
+    }
+
+    /** 한 지점(목록에서 두 번 누른 사람·차량)을 가깝게 보여 준다. */
+    fun focus(latitude: Double, longitude: Double) {
+        map?.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(latitude, longitude), FOCUS_ZOOM))
+    }
+
+    private fun me(): MapMarker? = markers.lastOrNull { it.kind == MapMarker.Kind.ME || it.kind == MapMarker.Kind.MY_CAR }
+
     private fun frame() {
         val map = map ?: return
-        val key = markers.map { it.id }.sorted().joinToString() + "|" + (route != null)
-        if (key == framedKey) return
-        framedKey = key
-        val points = markers.map { LatLng(it.latitude, it.longitude) }
-        when (points.size) {
-            0 -> Unit
-            1 -> map.animateCamera(CameraUpdateFactory.newLatLngZoom(points[0], 14.0))
-            else -> {
-                // 마커는 지점 위로 올라가 그려지므로(높이 ≈ 글자 3배) 위쪽 여백을 더 둔다.
-                val side = (labelSize * 1.5f).toInt()
-                val top = (labelSize * 3.3f).toInt()
-                map.animateCamera(CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(points).build(), side, top, side, side))
-            }
+        val route = route
+        val basis = when {
+            route != null -> "route"
+            me() != null -> "me"
+            markers.isNotEmpty() -> "all"
+            else -> return
         }
+        if (basis == framed) return
+        framed = basis
+        when (basis) {
+            "me" -> showMe()
+            // 픽업 중에는 차와 상대가 함께 보이게, 내 위치를 모를 때는 공유된 위치가 모두 보이게
+            else -> fit((route ?: markers).map { LatLng(it.latitude, it.longitude) }, map)
+        }
+    }
+
+    private fun fit(points: List<LatLng>, map: MapLibreMap) {
+        if (points.size == 1) {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(points[0], ME_ZOOM))
+            return
+        }
+        // 마커는 지점 위로 올라가 그려지므로(높이 ≈ 글자 3배) 위쪽 여백을 더 둔다.
+        val side = (labelSize * 1.5f).toInt()
+        val top = (labelSize * 3.3f).toInt()
+        map.animateCamera(CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(points).build(), side, top, side, side))
     }
 
     /** 아이콘 원 + 이름이 들어간 말풍선 모양 마커. 크기는 글자 크기에 비례한다. */
@@ -203,6 +232,10 @@ class FinderMap(private val mapView: MapView, private val typeface: Typeface? = 
         const val ROUTE_SOURCE = "finder-route"
         const val ROUTE_LAYER = "finder-route"
         const val ICON = "icon"
+
+        /** 내 위치를 보여 줄 때(동네 길까지 보이는 정도)와 목록에서 두 번 누른 사람을 보여 줄 때의 확대 단계 */
+        const val ME_ZOOM = 15.0
+        const val FOCUS_ZOOM = 16.0
 
         /** 공유된 위치가 없을 때 보여 줄 곳(판교) */
         val DEFAULT_CENTER = LatLng(37.4013, 127.1086)

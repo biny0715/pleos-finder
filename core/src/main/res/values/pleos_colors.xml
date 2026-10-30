@@ -40,4 +40,6 @@
     <!-- 토스트: basic_static_dark_200 (#131417 84%) 위에 흰 글자 -->
     <color name="pleos_toast_background">#D6131417</color>
     <color name="pleos_toast_text">#FFFFFFFF</color>
+    <!-- 즐겨찾기 별 -->
+    <color name="pleos_favorite">#FFB020</color>
 </resources>

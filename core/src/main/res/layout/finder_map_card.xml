@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  차량·폰 앱 공용 지도 카드: 지도 + 오른쪽 아래 '내 위치 보기' 버튼.
+  높이와 여백은 include 하는 쪽에서 정한다. 크기는 앱마다 다른 Pleos dimens 를 따른다.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mapCard"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/pleos_bg_card"
+    android:clipToOutline="true">
+
+    <org.maplibre.android.maps.MapView
+        android:id="@+id/mapView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ImageButton
+        android:id="@+id/myLocationButton"
+        android:layout_width="@dimen/pleos_button_height_medium"
+        android:layout_height="@dimen/pleos_button_height_medium"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="@dimen/pleos_gap"
+        android:background="@drawable/pleos_bg_map_button"
+        android:contentDescription="내 위치 보기"
+        android:elevation="4dp"
+        android:padding="@dimen/pleos_icon_button_padding"
+        android:scaleType="fitCenter"
+        android:src="@drawable/pleos_ic_my_location"
+        android:stateListAnimator="@animator/pleos_press_scale" />
+</FrameLayout>

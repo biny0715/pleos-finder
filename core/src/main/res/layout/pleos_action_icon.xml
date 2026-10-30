@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 아이콘만 있는 basic 버튼(즐겨찾기 별) -->
+<ImageButton xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/pleos_button_height_medium"
+    android:layout_height="@dimen/pleos_button_height_medium"
+    android:background="@drawable/pleos_bg_button_basic"
+    android:padding="@dimen/pleos_icon_button_padding"
+    android:scaleType="fitCenter"
+    android:stateListAnimator="@animator/pleos_press_scale" />

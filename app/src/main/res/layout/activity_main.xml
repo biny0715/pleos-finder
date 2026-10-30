@@ -174,6 +174,7 @@
             android:orientation="horizontal">
 
             <ScrollView
+                android:id="@+id/listScroll"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
@@ -185,19 +186,11 @@
                     android:orientation="vertical">
 
                     <!-- 지도: 내 차, 나에게 공유된 사람·차량, 픽업 중이면 내 차와 상대를 잇는 선 -->
-                    <FrameLayout
-                        android:id="@+id/mapCard"
+                    <include
+                        layout="@layout/finder_map_card"
                         android:layout_width="match_parent"
                         android:layout_height="360dp"
-                        android:layout_marginTop="32dp"
-                        android:background="@drawable/pleos_bg_card"
-                        android:clipToOutline="true">
-
-                        <org.maplibre.android.maps.MapView
-                            android:id="@+id/mapView"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent" />
-                    </FrameLayout>
+                        android:layout_marginTop="32dp" />
 
                     <LinearLayout
                         android:id="@+id/listContainer"

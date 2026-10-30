@@ -38,4 +38,6 @@
 
     <color name="pleos_toast_background">#D6131417</color>
     <color name="pleos_toast_text">#FFFFFFFF</color>
+    <!-- 즐겨찾기 별 -->
+    <color name="pleos_favorite">#FFC24D</color>
 </resources>

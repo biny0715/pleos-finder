@@ -8,6 +8,9 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
+import android.widget.ImageView
+import android.widget.ScrollView
+import android.os.SystemClock
 import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.TextView
@@ -31,6 +34,7 @@ import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.ShareRequest
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
 import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
+import com.EOKYEONGBIN.pleosfinder.core.ui.Favorites
 import com.EOKYEONGBIN.pleosfinder.core.ui.FinderMap
 import com.EOKYEONGBIN.pleosfinder.core.ui.MapMarker
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
@@ -69,6 +73,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var shareText: TextView
     private lateinit var mapView: MapView
     private lateinit var map: FinderMap
+    private lateinit var mainScroll: ScrollView
+    private val favorites by lazy { Favorites(this) }
+
+    /** 접어 둔 패널과 '더 보기'로 모두 펼친 패널 */
+    private val collapsedSections = mutableSetOf<String>()
+    private val expandedSections = mutableSetOf<String>()
+
+    /** 같은 줄을 두 번 누르면 지도에서 그 사람을 가깝게 보여 준다. */
+    private var lastTap: Pair<String, Long>? = null
 
     private var connections: List<Connection> = emptyList()
     private var permissions: Map<String, SharePermission> = emptyMap()
@@ -109,9 +122,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         MapLibre.getInstance(this)
         setContentView(R.layout.activity_main)
-        mapView = findViewById(R.id.mapView)
+        mapView = findViewById(CoreR.id.mapView)
         mapView.onCreate(savedInstanceState)
         map = FinderMap(mapView, ResourcesCompat.getFont(this, R.font.asta_sans_family))
+        mainScroll = findViewById(R.id.mainScroll)
 
         findViewById<TextView>(R.id.accountText).text = getString(R.string.account_format, me.name)
         inviteCard = findViewById(R.id.inviteCard)
@@ -132,9 +146,9 @@ class MainActivity : AppCompatActivity() {
         shareDot = findViewById(R.id.shareDot)
         shareText = findViewById(R.id.shareText)
 
-        header(R.id.familyHeader, R.string.section_family, R.string.action_add_family) { showInvite(Relation.FAMILY) }
-        header(R.id.friendHeader, R.string.section_friends, R.string.action_add_friend) { showInvite(Relation.FRIEND) }
-        header(R.id.groupHeader, R.string.section_groups, R.string.action_add_group) { showCreateGroup() }
+        header(R.id.familyHeader, SECTION_FAMILY, R.string.section_family, R.string.action_add_family) { showInvite(Relation.FAMILY) }
+        header(R.id.friendHeader, SECTION_FRIENDS, R.string.section_friends, R.string.action_add_friend) { showInvite(Relation.FRIEND) }
+        header(R.id.groupHeader, SECTION_GROUPS, R.string.section_groups, R.string.action_add_group) { showCreateGroup() }
 
         findViewById<Button>(R.id.inviteAlwaysButton).setOnClickListener { incomingInvite()?.let { choose(Choice(it.otherId, SharePermission.ALWAYS, it)) } }
         findViewById<Button>(R.id.inviteTemporaryButton).setOnClickListener { incomingInvite()?.let { choose(Choice(it.otherId, SharePermission.TEMPORARY, it)) } }
@@ -150,13 +164,71 @@ class MainActivity : AppCompatActivity() {
         renderPickup(null)
     }
 
-    private fun header(id: Int, title: Int, action: Int, onAction: () -> Unit) {
+    /** 패널 제목. 제목을 누르면 목록을 접고 펼친다(처음에는 펼침). */
+    private fun header(id: Int, key: String, title: Int, action: Int, onAction: () -> Unit) {
         val view = findViewById<View>(id)
         view.findViewById<TextView>(R.id.sectionTitle).setText(title)
+        view.findViewById<View>(R.id.sectionToggle).setOnClickListener {
+            if (key in collapsedSections) collapsedSections -= key else collapsedSections += key
+            render()
+        }
         view.findViewById<TextView>(R.id.sectionAction).apply {
             setText(action)
             setOnClickListener { onAction() }
         }
+    }
+
+    private fun renderSection(headerId: Int, key: String, list: View) {
+        val expanded = key !in collapsedSections
+        list.visibility = if (expanded) View.VISIBLE else View.GONE
+        findViewById<View>(headerId).findViewById<ImageView>(R.id.sectionChevron).apply {
+            rotation = if (expanded) 0f else -90f
+            contentDescription = if (expanded) "접기" else "펼치기"
+        }
+    }
+
+    private fun isFavorite(key: String) = favorites.contains(me.id, key)
+
+    /** 한 패널은 MAX_ROWS 줄까지 보여 주고, 나머지는 '더 보기'로 펼친다. */
+    private fun <T> visibleRows(key: String, items: List<T>): List<T> =
+        if (key in expandedSections || items.size <= Favorites.MAX_ROWS) items else items.take(Favorites.MAX_ROWS)
+
+    private fun addMoreRow(list: LinearLayout, key: String, total: Int) {
+        if (total <= Favorites.MAX_ROWS) return
+        val expanded = key in expandedSections
+        list.addView(TextView(this).apply {
+            text = if (expanded) "접기" else "더 보기 (${total - Favorites.MAX_ROWS})"
+            gravity = Gravity.CENTER
+            minHeight = dp(44)
+            setTextAppearance(CoreR.style.TextAppearance_Pleos_Label)
+            setTextColor(ContextCompat.getColor(this@MainActivity, CoreR.color.pleos_text_primary))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setBackgroundResource(CoreR.drawable.pleos_bg_row)
+            setOnClickListener {
+                if (expanded) expandedSections -= key else expandedSections += key
+                render()
+            }
+        })
+    }
+
+    private fun isDoubleTap(id: String): Boolean {
+        val now = SystemClock.uptimeMillis()
+        val double = lastTap?.let { (lastId, at) -> lastId == id && now - at < DOUBLE_TAP_MS } == true
+        lastTap = if (double) null else id to now
+        return double
+    }
+
+    /** 지도를 이 사람(폰 위치, 없으면 운전 중인 차량)에게 가깝게 맞춘다. */
+    private fun focusOn(member: Member) {
+        val now = System.currentTimeMillis()
+        val location = memberLocations[member.id]?.takeIf { sharesWithMe(member.id, now) }?.let { it.latitude to it.longitude }
+            ?: visibleDrivingVehicle(member.id, now)?.second?.let { it.latitude to it.longitude }
+        if (location == null) {
+            Toast.makeText(this, "${member.name}의 위치는 지금 볼 수 없어요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        mainScroll.smoothScrollTo(0, 0)
+        map.focus(location.first, location.second)
     }
 
     override fun onStart() {
@@ -305,8 +377,11 @@ class MainActivity : AppCompatActivity() {
             requestDetail.text = "${pending.requesterName}에게 위치를 공유할까요? 픽업이 끝나면 공유도 끝나요."
         }
 
-        renderPeople(familyList, Relation.FAMILY, "가족이 초대하면 여기에 보여요.")
-        renderPeople(friendList, Relation.FRIEND, "친구를 추가하면 여기에 보여요.")
+        renderSection(R.id.familyHeader, SECTION_FAMILY, familyList)
+        renderSection(R.id.friendHeader, SECTION_FRIENDS, friendList)
+        renderSection(R.id.groupHeader, SECTION_GROUPS, groupList)
+        renderPeople(familyList, SECTION_FAMILY, Relation.FAMILY, "가족이 초대하면 여기에 보여요.")
+        renderPeople(friendList, SECTION_FRIENDS, Relation.FRIEND, "친구를 추가하면 여기에 보여요.")
         renderGroups()
         renderShare()
         renderMap()
@@ -314,16 +389,17 @@ class MainActivity : AppCompatActivity() {
 
     // ---- 가족 · 친구 ----
 
-    private fun renderPeople(list: LinearLayout, relation: Relation, emptyMessage: String) {
+    private fun renderPeople(list: LinearLayout, key: String, relation: Relation, emptyMessage: String) {
         list.removeAllViews()
+        // 즐겨찾기한 사람이 맨 위에 온다.
         val people = connections.filter { it.relation == relation && it.status != InviteStatus.DECLINED && !it.isIncomingInvite }
-            .sortedBy { person(it.otherId).name }
+            .sortedWith(compareBy({ !isFavorite(Favorites.person(it.otherId)) }, { person(it.otherId).name }))
         if (people.isEmpty()) {
             addEmpty(list, emptyMessage)
             return
         }
         val now = System.currentTimeMillis()
-        for (connection in people) {
+        for (connection in visibleRows(key, people)) {
             val member = person(connection.otherId)
             val permission = permissions[member.id] ?: SharePermission.OFF
             val (status, dot) = if (connection.status == InviteStatus.PENDING) {
@@ -346,14 +422,27 @@ class MainActivity : AppCompatActivity() {
                 DemoDirectory.hasFinderPhone(member.id), DemoDirectory.vehiclesDrivenBy(member.id).isNotEmpty(),
                 status, dot,
             )
+            val favoriteKey = Favorites.person(member.id)
+            row.favorite(isFavorite(favoriteKey))
             val selected = selectedId == member.id && connection.status == InviteStatus.ACCEPTED
             row.view.isActivated = selected
             row.view.setOnClickListener {
+                if (isDoubleTap(member.id)) {
+                    focusOn(member)
+                    return@setOnClickListener
+                }
                 selectedId = if (selected) null else member.id
                 render()
             }
-            if (selected) list.addView(permissionEditor(member, permission))
+            if (selected) {
+                row.favoriteButton(isFavorite(favoriteKey)) {
+                    favorites.toggle(me.id, favoriteKey)
+                    render()
+                }
+                list.addView(permissionEditor(member, permission))
+            }
         }
+        addMoreRow(list, key, people.size)
     }
 
     /** 상대가 항상 허용했거나, 함께 참여한 그룹에 공유 중이면 상대 위치를 볼 수 있다. */
@@ -414,7 +503,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val now = System.currentTimeMillis()
-        for (group in groups.sortedBy { it.memberOf(me.id)?.status != InviteStatus.PENDING }) {
+        // 받은 초대가 먼저, 그다음 즐겨찾기한 그룹
+        val sorted = groups.sortedWith(compareBy({ it.memberOf(me.id)?.status != InviteStatus.PENDING }, { !isFavorite(Favorites.group(it.id)) }))
+        for (group in visibleRows(SECTION_GROUPS, sorted)) {
             val mine = group.memberOf(me.id) ?: continue
             val joined = group.members.count { it.status == InviteStatus.ACCEPTED }
             val owner = person(group.ownerId).name
@@ -436,9 +527,11 @@ class MainActivity : AppCompatActivity() {
                     chevron = true,
                 )
                 row.groupIcon()
+                row.favorite(isFavorite(Favorites.group(group.id)))
                 row.view.setOnClickListener { GroupActivity.open(this, group.id) }
             }
         }
+        addMoreRow(groupList, SECTION_GROUPS, sorted.size)
     }
 
     private fun Row.groupIcon() {
@@ -568,5 +661,9 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         val TIME_FORMAT = SimpleDateFormat("HH:mm:ss", Locale.KOREA)
+        const val DOUBLE_TAP_MS = 400L
+        const val SECTION_FAMILY = "family"
+        const val SECTION_FRIENDS = "friends"
+        const val SECTION_GROUPS = "groups"
     }
 }

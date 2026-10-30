@@ -5,10 +5,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.ColorRes
 import androidx.core.content.ContextCompat
+import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 
 /** item_row 한 줄을 만들고 채운다. 그룹 목록과 그룹 구성원 목록이 함께 쓴다. */
 class Row(val view: View) {
@@ -27,6 +29,22 @@ class Row(val view: View) {
         status.text = statusText
         dot.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(view.context, dotColor))
         return this
+    }
+
+    /** 이름 옆 즐겨찾기 별 */
+    fun favorite(on: Boolean): Row {
+        view.findViewById<View>(R.id.favoriteIcon).visibility = if (on) View.VISIBLE else View.GONE
+        return this
+    }
+
+    /** 줄 오른쪽에 즐겨찾기 별 버튼을 보여 준다. */
+    fun favoriteButton(on: Boolean, onClick: () -> Unit) {
+        view.findViewById<ImageButton>(R.id.favoriteButton).apply {
+            setImageResource(if (on) CoreR.drawable.pleos_ic_star else CoreR.drawable.pleos_ic_star_outline)
+            contentDescription = if (on) "즐겨찾기 해제" else "즐겨찾기"
+            setOnClickListener { onClick() }
+            visibility = View.VISIBLE
+        }
     }
 
     /** 아래에 버튼을 붙인다. filled = 주요 동작 */

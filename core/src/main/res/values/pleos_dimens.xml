@@ -36,4 +36,6 @@
     <dimen name="pleos_toast_padding_vertical">24dp</dimen>
     <dimen name="pleos_toast_margin">24dp</dimen>
     <dimen name="pleos_toast_max_width">792dp</dimen>
+    <!-- 아이콘 버튼(즐겨찾기 별, 내 위치) 안쪽 여백: 버튼 80dp 에 아이콘 40dp -->
+    <dimen name="pleos_icon_button_padding">20dp</dimen>
 </resources>

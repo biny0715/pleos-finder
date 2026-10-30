@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.TextView
@@ -23,6 +24,7 @@ import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
 import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
+import com.EOKYEONGBIN.pleosfinder.core.ui.Favorites
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -47,6 +49,7 @@ class GroupActivity : AppCompatActivity() {
     private lateinit var extendButton: Button
 
     private var group: FinderGroup? = null
+    private val favorites by lazy { Favorites(this) }
     private var vehicleLocations: Map<String, VehicleLocation> = emptyMap()
     private val subscriptions = mutableListOf<Subscription>()
     private val handler = Handler(Looper.getMainLooper())
@@ -87,6 +90,11 @@ class GroupActivity : AppCompatActivity() {
         extendButton = findViewById(R.id.extendButton)
 
         findViewById<TextView>(R.id.backButton).setOnClickListener { finish() }
+        findViewById<ImageButton>(R.id.favoriteButton).setOnClickListener {
+            val current = group ?: return@setOnClickListener
+            favorites.toggle(me.id, Favorites.group(current.id))
+            render()
+        }
         findViewById<TextView>(R.id.renameButton).setOnClickListener {
             val current = group ?: return@setOnClickListener
             PleosTextInputDialog.show(
@@ -150,6 +158,11 @@ class GroupActivity : AppCompatActivity() {
         val current = group ?: return
         val now = System.currentTimeMillis()
         groupName.text = current.name
+        val favorite = favorites.contains(me.id, Favorites.group(current.id))
+        findViewById<ImageButton>(R.id.favoriteButton).apply {
+            setImageResource(if (favorite) CoreR.drawable.pleos_ic_star else CoreR.drawable.pleos_ic_star_outline)
+            contentDescription = if (favorite) "즐겨찾기 해제" else "즐겨찾기"
+        }
         // 이름은 그룹을 만든 사람만 바꾼다.
         findViewById<TextView>(R.id.renameButton).visibility = if (current.ownerId == me.id) android.view.View.VISIBLE else android.view.View.GONE
         val members = current.members.filter { it.status != InviteStatus.DECLINED }

@@ -8,12 +8,29 @@
     android:gravity="center_vertical"
     android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/sectionTitle"
+    <!-- 제목을 누르면 목록을 접고 펼친다(처음에는 펼침). -->
+    <LinearLayout
+        android:id="@+id/sectionToggle"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="64dp"
         android:layout_weight="1"
-        android:textAppearance="@style/TextAppearance.Pleos.Label" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/sectionTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+        <ImageView
+            android:id="@+id/sectionChevron"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="접기"
+            android:src="@drawable/pleos_ic_expand" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/sectionAction"
