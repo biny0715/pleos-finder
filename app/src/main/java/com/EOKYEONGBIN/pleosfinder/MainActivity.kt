@@ -25,12 +25,16 @@ import com.EOKYEONGBIN.pleosfinder.core.Member
 import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 import com.EOKYEONGBIN.pleosfinder.core.Relation
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
+import com.EOKYEONGBIN.pleosfinder.core.ui.FinderMap
+import com.EOKYEONGBIN.pleosfinder.core.ui.MapMarker
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosToast
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.maplibre.android.MapLibre
+import org.maplibre.android.maps.MapView
 
 class MainActivity : AppCompatActivity() {
 
@@ -41,6 +45,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var profileAvatar: TextView
     private lateinit var profileName: TextView
     private lateinit var listContainer: LinearLayout
+    private lateinit var mapView: MapView
+    private lateinit var map: FinderMap
 
     private lateinit var pickupStrip: View
     private lateinit var contentRow: ViewGroup
@@ -73,7 +79,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MapLibre.getInstance(this)
         setContentView(R.layout.activity_main)
+        mapView = findViewById(R.id.mapView)
+        mapView.onCreate(savedInstanceState)
+        map = FinderMap(mapView)
 
         toast = PleosToast(findViewById(R.id.toast))
         profileAvatar = findViewById(R.id.profileAvatar)
@@ -126,15 +136,44 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        mapView.onStart()
         session.onChanged = ::render
         session.onMessage = toast::show
+        session.onLocationsChanged = ::renderMap
         render()
     }
 
     override fun onStop() {
         session.onChanged = null
         session.onMessage = null
+        session.onLocationsChanged = null
+        mapView.onStop()
         super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+    }
+
+    override fun onPause() {
+        mapView.onPause()
+        super.onPause()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        mapView.onSaveInstanceState(outState)
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
+    }
+
+    override fun onDestroy() {
+        mapView.onDestroy()
+        super.onDestroy()
     }
 
     private fun render() {
@@ -142,6 +181,7 @@ class MainActivity : AppCompatActivity() {
         profileName.text = "${session.me.name} · ${session.vehicle.name} 운전 중"
         renderList()
         renderPickup()
+        renderMap()
         val group = openGroup()
         if (group == null) openGroupId = null
         val split = group != null
@@ -164,6 +204,31 @@ class MainActivity : AppCompatActivity() {
                 groupPanel.visibility = View.GONE
             }
         }
+    }
+
+    /** 내 차, 나에게 위치를 보여 주는 사람과 차량. 픽업 중이면 내 차와 상대를 선으로 잇는다. */
+    private fun renderMap() {
+        // 겹치면 뒤에 넣은 것이 위에 그려진다: 다른 차량 → 사람 → 내 차
+        val markers = mutableListOf<MapMarker>()
+        for (vehicle in DemoDirectory.vehicles) {
+            if (vehicle.id == session.vehicle.id) continue
+            val location = session.visibleVehicleLocation(vehicle) ?: continue
+            markers += MapMarker("car:${vehicle.id}", "${session.person(location.driverId).name} · ${vehicle.name}", MapMarker.Kind.CAR, location.latitude, location.longitude)
+        }
+        for ((member, location) in session.visiblePeopleLocations()) {
+            markers += MapMarker(member.id, member.name, MapMarker.Kind.PERSON, location.latitude, location.longitude)
+        }
+        // 내 차는 맨 위에 보이도록 마지막에 넣는다.
+        val mine = session.myPosition
+        if (mine != null) markers += MapMarker("me", "내 차", MapMarker.Kind.MY_CAR, mine.first, mine.second)
+        val target = (session.pickupState as? PickupState.OnTheWay)?.targetLocation
+        val route = if (mine != null && target != null) {
+            listOf(
+                MapMarker("from", "", MapMarker.Kind.MY_CAR, mine.first, mine.second),
+                MapMarker("to", "", MapMarker.Kind.PERSON, target.latitude, target.longitude),
+            )
+        } else null
+        map.show(markers, route)
     }
 
     private fun openGroup(): FinderGroup? = openGroupId?.let { id -> session.myGroups().firstOrNull { it.id == id } }

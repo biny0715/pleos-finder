@@ -23,4 +23,6 @@ dependencies {
     implementation(libs.material)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.database)
+    // 차량·폰 앱 공용 지도(FinderMap). 앱이 레이아웃에서 MapView 를 바로 쓰므로 api 로 넘긴다.
+    api(libs.maplibre.android)
 }

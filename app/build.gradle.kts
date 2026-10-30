@@ -42,7 +42,9 @@ android {
             signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                // kotlin 표준 라이브러리까지 줄이면 MapLibre 안의 OkHttp 가 상속하는 kotlin 클래스 이름이 바뀌어
+                // 지도를 불러오는 순간 앱이 꺼진다(IllegalAccessError). androidx 만 줄인다.
+                packageScope = setOf("androidx.**")
             }
         }
     }

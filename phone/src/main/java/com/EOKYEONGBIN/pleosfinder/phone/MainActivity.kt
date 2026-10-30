@@ -17,6 +17,7 @@ import androidx.annotation.ColorRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.EOKYEONGBIN.pleosfinder.core.Connection
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
@@ -30,6 +31,8 @@ import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.ShareRequest
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
 import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
+import com.EOKYEONGBIN.pleosfinder.core.ui.FinderMap
+import com.EOKYEONGBIN.pleosfinder.core.ui.MapMarker
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -108,7 +111,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         mapView = findViewById(R.id.mapView)
         mapView.onCreate(savedInstanceState)
-        map = FinderMap(mapView)
+        map = FinderMap(mapView, ResourcesCompat.getFont(this, R.font.asta_sans_family))
 
         findViewById<TextView>(R.id.accountText).text = getString(R.string.account_format, me.name)
         inviteCard = findViewById(R.id.inviteCard)
@@ -513,15 +516,16 @@ class MainActivity : AppCompatActivity() {
     private fun renderMap() {
         val now = System.currentTimeMillis()
         val markers = mutableListOf<MapMarker>()
+        // 겹치면 뒤에 넣은 것이 위에 그려진다: 차량 → 사람 → 나
         val others = contactSubscriptions.keys
+        for (id in others) {
+            val (vehicleName, location) = visibleDrivingVehicle(id, now) ?: continue
+            markers += MapMarker("car:${location.vehicleId}", "${person(id).name} · $vehicleName", MapMarker.Kind.CAR, location.latitude, location.longitude)
+        }
         for (id in others) {
             if (!sharesWithMe(id, now)) continue
             val location = memberLocations[id] ?: continue
             markers += MapMarker(id, person(id).name, MapMarker.Kind.PERSON, location.latitude, location.longitude)
-        }
-        for (id in others) {
-            val (vehicleName, location) = visibleDrivingVehicle(id, now) ?: continue
-            markers += MapMarker("car:${location.vehicleId}", "${person(id).name} · $vehicleName", MapMarker.Kind.CAR, location.latitude, location.longitude)
         }
         val current = pickup
         val mine = myLocation

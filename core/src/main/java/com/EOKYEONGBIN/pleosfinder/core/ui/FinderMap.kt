@@ -1,4 +1,4 @@
-package com.EOKYEONGBIN.pleosfinder.phone
+package com.EOKYEONGBIN.pleosfinder.core.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -6,13 +6,15 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.view.MotionEvent
 import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
-import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
+import com.EOKYEONGBIN.pleosfinder.core.R
+import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
@@ -38,19 +40,21 @@ import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
-/** 지도에 찍을 사람 또는 차량 */
+/** 지도에 찍을 사람 또는 차량. ME = 폰의 나, MY_CAR = 차량 앱의 내 차 */
 data class MapMarker(val id: String, val label: String, val kind: Kind, val latitude: Double, val longitude: Double) {
-    enum class Kind { ME, PERSON, CAR }
+    enum class Kind { ME, MY_CAR, PERSON, CAR }
 }
 
 /**
- * 폰 앱 지도. MapLibre + OpenFreeMap(OpenStreetMap 자료) 무료 지도에
- * 나에게 공유된 사람·차량을 표시하고, 픽업 중에는 차와 나를 잇는 선을 그린다.
+ * 차량·폰 앱 공용 지도. MapLibre + OpenFreeMap(OpenStreetMap 자료) 무료 지도에
+ * 나에게 공유된 사람·차량을 표시하고, 픽업 중에는 차와 기다리는 사람을 잇는 선을 그린다.
  * 기본 내비 경로는 외부 앱이 받을 수 없어 선은 직선으로 그린다(기획서 5장).
+ * 마커 크기는 앱마다 다른 Pleos dimens(pleos_text_label: 차량 24sp / 폰 13sp)를 따른다.
  */
-class FinderMap(private val mapView: MapView) {
+class FinderMap(private val mapView: MapView, private val typeface: Typeface? = null) {
 
     private val context: Context = mapView.context
+    private val labelSize = context.resources.getDimension(R.dimen.pleos_text_label)
     private var map: MapLibreMap? = null
     private var style: Style? = null
     private var markers: List<MapMarker> = emptyList()
@@ -72,14 +76,14 @@ class FinderMap(private val mapView: MapView) {
             map.uiSettings.isCompassEnabled = false
             map.uiSettings.isRotateGesturesEnabled = false
             map.uiSettings.isTiltGesturesEnabled = false
-            map.cameraPosition = org.maplibre.android.camera.CameraPosition.Builder().target(DEFAULT_CENTER).zoom(11.0).build()
+            map.cameraPosition = CameraPosition.Builder().target(DEFAULT_CENTER).zoom(11.0).build()
             map.setStyle(Style.Builder().fromUri(STYLE_URL)) { style ->
                 style.addSource(GeoJsonSource(ROUTE_SOURCE))
                 style.addSource(GeoJsonSource(MARKER_SOURCE))
                 style.addLayer(
                     LineLayer(ROUTE_LAYER, ROUTE_SOURCE).withProperties(
-                        lineColor(ContextCompat.getColor(context, CoreR.color.pleos_informative_positive)),
-                        lineWidth(4f),
+                        lineColor(ContextCompat.getColor(context, R.color.pleos_informative_positive)),
+                        lineWidth(labelSize / context.resources.displayMetrics.density / 3.25f),
                         lineDasharray(arrayOf(1.5f, 1.5f)),
                         lineCap(Property.LINE_CAP_ROUND),
                     )
@@ -100,7 +104,7 @@ class FinderMap(private val mapView: MapView) {
         }
     }
 
-    /** route = 픽업 중일 때 [차, 나] */
+    /** route = 픽업 중일 때 [차, 기다리는 사람] */
     fun show(markers: List<MapMarker>, route: List<MapMarker>?) {
         this.markers = markers
         this.route = route
@@ -132,41 +136,47 @@ class FinderMap(private val mapView: MapView) {
             0 -> Unit
             1 -> map.animateCamera(CameraUpdateFactory.newLatLngZoom(points[0], 14.0))
             else -> {
-                val padding = dp(48)
-                map.animateCamera(CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(points).build(), padding, dp(72), padding, padding))
+                // 마커는 지점 위로 올라가 그려지므로(높이 ≈ 글자 3배) 위쪽 여백을 더 둔다.
+                val side = (labelSize * 1.5f).toInt()
+                val top = (labelSize * 3.3f).toInt()
+                map.animateCamera(CameraUpdateFactory.newLatLngBounds(LatLngBounds.Builder().includes(points).build(), side, top, side, side))
             }
         }
     }
 
-    /** 아이콘 원 + 이름이 들어간 말풍선 모양 마커 */
+    /** 아이콘 원 + 이름이 들어간 말풍선 모양 마커. 크기는 글자 크기에 비례한다. */
     private fun markerBitmap(marker: MapMarker): Bitmap {
         @ColorRes val accent = when (marker.kind) {
-            MapMarker.Kind.ME -> CoreR.color.pleos_informative_positive
-            MapMarker.Kind.PERSON -> CoreR.color.pleos_informative_active
-            MapMarker.Kind.CAR -> CoreR.color.pleos_basic_600
+            MapMarker.Kind.ME, MapMarker.Kind.MY_CAR -> R.color.pleos_informative_positive
+            MapMarker.Kind.PERSON -> R.color.pleos_informative_active
+            MapMarker.Kind.CAR -> R.color.pleos_basic_600
         }
-        @DrawableRes val icon = if (marker.kind == MapMarker.Kind.CAR) CoreR.drawable.pleos_ic_car else CoreR.drawable.pleos_ic_person
+        @DrawableRes val icon = when (marker.kind) {
+            MapMarker.Kind.MY_CAR, MapMarker.Kind.CAR -> R.drawable.pleos_ic_car
+            MapMarker.Kind.ME, MapMarker.Kind.PERSON -> R.drawable.pleos_ic_person
+        }
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = ContextCompat.getColor(context, CoreR.color.pleos_text_primary)
-            textSize = dp(13).toFloat()
-            typeface = ResourcesCompat.getFont(context, R.font.asta_sans_family)
+            color = ContextCompat.getColor(context, R.color.pleos_text_primary)
+            textSize = labelSize
+            typeface = this@FinderMap.typeface ?: Typeface.DEFAULT
             isFakeBoldText = true
         }
-        val circle = dp(24)
-        val pad = dp(4)
-        val tail = dp(6)
-        val width = pad + circle + dp(6) + textPaint.measureText(marker.label).toInt() + dp(10)
+        val circle = (labelSize * 1.85f).toInt()
+        val pad = (labelSize * 0.31f).toInt()
+        val tail = (labelSize * 0.46f).toInt()
+        val gap = (labelSize * 0.46f).toInt()
+        val width = pad + circle + gap + textPaint.measureText(marker.label).toInt() + (labelSize * 0.77f).toInt()
         val height = pad * 2 + circle
         val bitmap = Bitmap.createBitmap(width, height + tail, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
-            setShadowLayer(dp(2).toFloat(), 0f, dp(1).toFloat(), 0x33000000)
+            setShadowLayer(labelSize * 0.15f, 0f, labelSize * 0.08f, 0x33000000)
         }
         canvas.drawRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), height / 2f, height / 2f, fill)
         // 지점을 가리키는 꼬리
         val center = width / 2f
-        val path = android.graphics.Path().apply {
+        val path = Path().apply {
             moveTo(center - tail, height.toFloat() - 1)
             lineTo(center + tail, height.toFloat() - 1)
             lineTo(center, (height + tail).toFloat())
@@ -177,16 +187,14 @@ class FinderMap(private val mapView: MapView) {
         canvas.drawCircle(pad + circle / 2f, height / 2f, circle / 2f, accentPaint)
         ContextCompat.getDrawable(context, icon)?.mutate()?.apply {
             setTint(Color.WHITE)
-            val inset = dp(5)
+            val inset = (labelSize * 0.38f).toInt()
             setBounds(pad + inset, pad + inset, pad + circle - inset, pad + circle - inset)
             draw(canvas)
         }
         val baseline = height / 2f - (textPaint.descent() + textPaint.ascent()) / 2
-        canvas.drawText(marker.label, (pad + circle + dp(6)).toFloat(), baseline, textPaint)
+        canvas.drawText(marker.label, (pad + circle + gap).toFloat(), baseline, textPaint)
         return bitmap
     }
-
-    private fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
 
     private companion object {
         const val STYLE_URL = "https://tiles.openfreemap.org/styles/positron"

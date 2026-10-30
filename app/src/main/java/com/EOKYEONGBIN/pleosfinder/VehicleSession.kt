@@ -92,6 +92,9 @@ class VehicleSession(context: Context) {
     var onChanged: (() -> Unit)? = null
     var onMessage: ((String) -> Unit)? = null
 
+    /** 폰 위치처럼 목록은 그대로이고 지도만 바뀌는 변화 */
+    var onLocationsChanged: (() -> Unit)? = null
+
     private val naviEventListener = object : NaviHelperEventListener {
         override fun onError(naviErrorCode: NaviErrorCode) = showMessage("길 안내 오류: $naviErrorCode")
         override fun onCurrentLocationInfo(currentLocationInfo: CurrentLocationInfo) {
@@ -210,7 +213,10 @@ class VehicleSession(context: Context) {
                     flushReady()
                     notifyChanged()
                 },
-                repository.observeMemberLocation(id) { phoneLocations[id] = it },
+                repository.observeMemberLocation(id) {
+                    phoneLocations[id] = it
+                    onLocationsChanged?.invoke()
+                },
                 repository.observeVehicleShares(id) { shares ->
                     val until = shares[me.id]
                     if (until == null) vehicleSharesToMe.remove(id) else vehicleSharesToMe[id] = until
@@ -252,6 +258,20 @@ class VehicleSession(context: Context) {
     fun isConnected(member: Member) = connections.any { it.otherId == member.id && it.status == InviteStatus.ACCEPTED }
 
     fun permissionOf(member: Member): SharePermission = permissionsToMe[member.id] ?: SharePermission.OFF
+
+    /**
+     * 지도에 보일 사람 위치: 나에게 항상 허용이거나, 함께 참여한 그룹에 지금 공유 중인 사람.
+     * 픽업 중인 상대는 공유를 수락했으므로 함께 넣는다.
+     */
+    fun visiblePeopleLocations(): List<Pair<Member, MemberLocation>> {
+        val pickupTarget = (pickupState as? PickupState.OnTheWay)?.target?.id
+        return phoneLocations.mapNotNull { (id, location) ->
+            val shared = id == pickupTarget ||
+                (permissionsToMe[id] == SharePermission.ALWAYS && isConnected(DemoDirectory.member(id))) ||
+                myGroups().any { g -> g.memberOf(me.id)?.status == InviteStatus.ACCEPTED && g.memberOf(id)?.isSharing() == true }
+            if (shared) person(id) to location else null
+        }
+    }
 
     /** 마지막으로 받은 폰 위치. 공유가 꺼져 있으면 오래된 값일 수 있다. */
     fun lastLocationOf(member: Member): MemberLocation? = phoneLocations[member.id]
