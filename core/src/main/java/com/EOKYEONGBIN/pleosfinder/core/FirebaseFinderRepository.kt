@@ -197,6 +197,10 @@ class FirebaseFinderRepository(
         return ref.key!!
     }
 
+    override fun renameGroup(groupId: String, name: String) {
+        root.child("finderGroups").child(groupId).child("name").setValue(name)
+    }
+
     override fun inviteToGroup(groupId: String, accountId: String) {
         setGroupMember(groupId, GroupMember(accountId, InviteStatus.PENDING, SharePermission.OFF, 0L))
     }

@@ -23,6 +23,7 @@ import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
 import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
+import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -86,6 +87,12 @@ class GroupActivity : AppCompatActivity() {
         extendButton = findViewById(R.id.extendButton)
 
         findViewById<TextView>(R.id.backButton).setOnClickListener { finish() }
+        findViewById<TextView>(R.id.renameButton).setOnClickListener {
+            val current = group ?: return@setOnClickListener
+            PleosTextInputDialog.show(
+                this, title = "그룹 이름 변경", label = "그룹 이름", hint = "예: 주말 캠핑", initial = current.name, confirmLabel = "변경",
+            ) { name -> if (name != current.name) repository.renameGroup(current.id, name) }
+        }
         shareGroup.setOnCheckedChangeListener { _, checkedId ->
             if (rendering) return@setOnCheckedChangeListener
             val mine = group?.memberOf(me.id) ?: return@setOnCheckedChangeListener
@@ -143,6 +150,8 @@ class GroupActivity : AppCompatActivity() {
         val current = group ?: return
         val now = System.currentTimeMillis()
         groupName.text = current.name
+        // 이름은 그룹을 만든 사람만 바꾼다.
+        findViewById<TextView>(R.id.renameButton).visibility = if (current.ownerId == me.id) android.view.View.VISIBLE else android.view.View.GONE
         val members = current.members.filter { it.status != InviteStatus.DECLINED }
             .sortedWith(compareBy({ it.accountId != me.id }, { it.status != InviteStatus.ACCEPTED }))
         membersTitle.text = "구성원 ${members.count { it.status == InviteStatus.ACCEPTED }}명 · ${members.count { it.isSharing(now) }}명 공유 중"

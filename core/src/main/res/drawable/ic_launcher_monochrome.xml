@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 테마 아이콘(Android 13+)용 한 가지 색 아이콘: 글자 F 만 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M39,33H71V42H48V51H65V60H48V75H39V59L43.5,55.5L39,52Z" />
+</vector>

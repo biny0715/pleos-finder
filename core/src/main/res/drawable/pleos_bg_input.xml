@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 글자 입력 칸: 평소에는 basic 버튼과 같은 옅은 바탕, 입력 중이면 positive 색 테두리 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape>
+            <solid android:color="@color/pleos_button_basic_enabled" />
+            <stroke android:width="2dp" android:color="@color/pleos_informative_positive" />
+            <corners android:radius="@dimen/pleos_button_radius_medium" />
+        </shape>
+    </item>
+    <item>
+        <shape>
+            <solid android:color="@color/pleos_button_basic_enabled" />
+            <corners android:radius="@dimen/pleos_button_radius_medium" />
+        </shape>
+    </item>
+</selector>

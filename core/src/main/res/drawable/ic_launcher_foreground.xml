@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  플레오스 Finder 아이콘: Pleos 로고타입처럼 굵기가 고른 기하 글자 F 와,
+  가운데 획 높이에서 기둥 왼쪽을 파고드는 삼각 홈. 108dp 캔버스, 안전 영역(지름 66dp) 안에 그린다.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M39,33H71V42H48V51H65V60H48V75H39V59L43.5,55.5L39,52Z" />
+</vector>

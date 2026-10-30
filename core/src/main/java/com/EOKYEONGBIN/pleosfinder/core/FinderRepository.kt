@@ -44,6 +44,7 @@ interface FinderRepository {
 
     /** 그룹을 만들고 만든 사람을 구성원(공유 꺼짐)으로 넣는다. 새 그룹 id 를 돌려준다. */
     fun createGroup(name: String, ownerId: String): String
+    fun renameGroup(groupId: String, name: String)
     fun inviteToGroup(groupId: String, accountId: String)
     fun setGroupMember(groupId: String, member: GroupMember)
     fun observeGroups(onUpdate: (List<FinderGroup>) -> Unit): Subscription

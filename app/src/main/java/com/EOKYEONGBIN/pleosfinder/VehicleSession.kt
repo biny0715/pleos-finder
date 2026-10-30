@@ -293,6 +293,12 @@ class VehicleSession(context: Context) {
         return id
     }
 
+    fun renameGroup(group: FinderGroup, name: String) {
+        if (name == group.name) return
+        repository.renameGroup(group.id, name)
+        showMessage("그룹 이름을 '$name'(으)로 바꿨어요.")
+    }
+
     fun inviteToGroup(group: FinderGroup, member: Member) {
         repository.inviteToGroup(group.id, member.id)
         showMessage("${member.name}에게 '${group.name}' 그룹 초대를 보냈어요.")

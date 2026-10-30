@@ -8,7 +8,6 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.TextView
@@ -23,6 +22,7 @@ import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.Member
+import com.EOKYEONGBIN.pleosfinder.core.MemberLocation
 import com.EOKYEONGBIN.pleosfinder.core.PickupStatus
 import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 import com.EOKYEONGBIN.pleosfinder.core.Relation
@@ -30,9 +30,12 @@ import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.ShareRequest
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
 import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
+import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.maplibre.android.MapLibre
+import org.maplibre.android.maps.MapView
 
 /**
  * 폰 앱 메인. 차량 앱과 같은 가족 · 친구 · 그룹 패널.
@@ -61,11 +64,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var groupList: LinearLayout
     private lateinit var shareDot: View
     private lateinit var shareText: TextView
+    private lateinit var mapView: MapView
+    private lateinit var map: FinderMap
 
     private var connections: List<Connection> = emptyList()
     private var permissions: Map<String, SharePermission> = emptyMap()
     private val permissionsToMe = mutableMapOf<String, SharePermission>()
     private val vehicleSharesToMe = mutableMapOf<String, Long>()
+    private val memberLocations = mutableMapOf<String, MemberLocation>()
+    private var myLocation: MemberLocation? = null
+    private var pickup: PickupStatus? = null
     private var vehicleLocations: Map<String, VehicleLocation> = emptyMap()
     private var request: ShareRequest? = null
     private var groups: List<FinderGroup> = emptyList()
@@ -96,7 +104,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MapLibre.getInstance(this)
         setContentView(R.layout.activity_main)
+        mapView = findViewById(R.id.mapView)
+        mapView.onCreate(savedInstanceState)
+        map = FinderMap(mapView)
 
         findViewById<TextView>(R.id.accountText).text = getString(R.string.account_format, me.name)
         inviteCard = findViewById(R.id.inviteCard)
@@ -146,6 +158,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        mapView.onStart()
         LocationShareService.onStateChanged = ::renderShare
         subscriptions += repository.observeConnections(me.id) {
             connections = it
@@ -163,12 +176,17 @@ class MainActivity : AppCompatActivity() {
             render()
         }
         subscriptions += repository.observePickupStatus(me.id, ::renderPickup)
+        subscriptions += repository.observeMemberLocation(me.id) {
+            myLocation = it
+            render()
+        }
         subscriptions += repository.observeVehicleLocations {
             vehicleLocations = it
             render()
         }
         subscriptions += repository.observeGroups { all ->
             groups = all.filter { it.memberOf(me.id)?.let { m -> m.status != InviteStatus.DECLINED } == true }
+            syncContactSubscriptions()
             if (groups.any { it.memberOf(me.id)?.isSharing() == true }) ensureService()
             render()
         }
@@ -181,20 +199,47 @@ class MainActivity : AppCompatActivity() {
         subscriptions.clear()
         contactSubscriptions.values.flatten().forEach { it.cancel() }
         contactSubscriptions.clear()
+        mapView.onStop()
         super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+    }
+
+    override fun onPause() {
+        mapView.onPause()
+        super.onPause()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        mapView.onSaveInstanceState(outState)
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mapView.onLowMemory()
+    }
+
+    override fun onDestroy() {
+        mapView.onDestroy()
+        super.onDestroy()
     }
 
     private fun ensureService() {
         if (!LocationShareService.isRunning && hasLocationPermission()) LocationShareService.start(this)
     }
 
-    /** 연결된 상대마다, 상대가 나에게 정한 허용 방식과 차량 공유를 구독한다(상대 차량 위치 표시용). */
+    /** 연결된 상대와 함께 있는 그룹 구성원마다, 나에게 정한 허용 방식·차량 공유·위치를 구독한다(목록과 지도 표시용). */
     private fun syncContactSubscriptions() {
-        val ids = connections.map { it.otherId }.toSet()
+        val ids = (connections.map { it.otherId } + groups.flatMap { g -> g.members.map { it.accountId } }).toSet() - me.id
         (contactSubscriptions.keys - ids).forEach { id ->
             contactSubscriptions.remove(id)?.forEach { it.cancel() }
             permissionsToMe.remove(id)
             vehicleSharesToMe.remove(id)
+            memberLocations.remove(id)
         }
         (ids - contactSubscriptions.keys).forEach { id ->
             contactSubscriptions[id] = listOf(
@@ -205,6 +250,10 @@ class MainActivity : AppCompatActivity() {
                 repository.observeVehicleShares(id) { shares ->
                     val until = shares[me.id]
                     if (until == null) vehicleSharesToMe.remove(id) else vehicleSharesToMe[id] = until
+                    render()
+                },
+                repository.observeMemberLocation(id) {
+                    memberLocations[id] = it
                     render()
                 },
             )
@@ -257,6 +306,7 @@ class MainActivity : AppCompatActivity() {
         renderPeople(friendList, Relation.FRIEND, "친구를 추가하면 여기에 보여요.")
         renderGroups()
         renderShare()
+        renderMap()
     }
 
     // ---- 가족 · 친구 ----
@@ -303,11 +353,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** 상대가 항상 허용했거나, 함께 참여한 그룹에 공유 중이면 상대 위치를 볼 수 있다. */
+    private fun sharesWithMe(id: String, now: Long): Boolean =
+        permissionsToMe[id] == SharePermission.ALWAYS ||
+            groups.any { g -> g.memberOf(me.id)?.status == InviteStatus.ACCEPTED && g.memberOf(id)?.isSharing(now) == true }
+
     /** 상대가 지금 운전 중이고 나에게 보여 주는 차량(이름, 위치). 차량 위치는 운전자의 설정을 따른다. */
     private fun visibleDrivingVehicle(driverId: String, now: Long): Pair<String, VehicleLocation>? {
-        val visible = permissionsToMe[driverId] == SharePermission.ALWAYS ||
-            (vehicleSharesToMe[driverId] ?: 0L) > now ||
-            groups.any { g -> g.memberOf(me.id)?.status == InviteStatus.ACCEPTED && g.memberOf(driverId)?.isSharing(now) == true }
+        val visible = sharesWithMe(driverId, now) || (vehicleSharesToMe[driverId] ?: 0L) > now
         if (!visible) return null
         return DemoDirectory.vehiclesDrivenBy(driverId).firstNotNullOfOrNull { v ->
             vehicleLocations[v.id]?.takeIf { it.driverId == driverId }?.let { v.name to it }
@@ -411,19 +464,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showCreateGroup() {
-        val input = EditText(this).apply {
-            setText("새 그룹")
-            setSelection(text.length)
-        }
-        AlertDialog.Builder(this)
-            .setTitle("그룹 만들기")
-            .setView(input)
-            .setPositiveButton("만들기") { _, _ ->
-                val id = repository.createGroup(input.text.toString().trim().ifEmpty { "새 그룹" }, me.id)
-                GroupActivity.open(this, id)
-            }
-            .setNegativeButton("취소", null)
-            .show()
+        PleosTextInputDialog.show(
+            this, title = "그룹 만들기", label = "그룹 이름", hint = "예: 주말 캠핑", initial = "", confirmLabel = "만들기",
+        ) { name -> GroupActivity.open(this, repository.createGroup(name, me.id)) }
     }
 
     // ---- 상태 ----
@@ -443,6 +486,8 @@ class MainActivity : AppCompatActivity() {
     /** 누군가 픽업하러 오는 동안만 픽업 카드를 보여 준다. */
     private fun renderPickup(status: PickupStatus?) {
         val current = status?.takeIf { !it.isStale() && it.state != PickupStatus.State.CANCELLED }
+        pickup = current
+        if (::mapView.isInitialized) renderMap()
         pickupCard.visibility = if (current != null) View.VISIBLE else View.GONE
         pickupMetrics.visibility = if (current?.state == PickupStatus.State.ON_THE_WAY) View.VISIBLE else View.GONE
         when (current?.state) {
@@ -460,6 +505,40 @@ class MainActivity : AppCompatActivity() {
             }
             else -> Unit
         }
+    }
+
+    // ---- 지도 ----
+
+    /** 나, 나에게 위치를 보여 주는 사람, 운전 중인 차량. 픽업 중이면 오는 차와 나를 선으로 잇는다. */
+    private fun renderMap() {
+        val now = System.currentTimeMillis()
+        val markers = mutableListOf<MapMarker>()
+        val others = contactSubscriptions.keys
+        for (id in others) {
+            if (!sharesWithMe(id, now)) continue
+            val location = memberLocations[id] ?: continue
+            markers += MapMarker(id, person(id).name, MapMarker.Kind.PERSON, location.latitude, location.longitude)
+        }
+        for (id in others) {
+            val (vehicleName, location) = visibleDrivingVehicle(id, now) ?: continue
+            markers += MapMarker("car:${location.vehicleId}", "${person(id).name} · $vehicleName", MapMarker.Kind.CAR, location.latitude, location.longitude)
+        }
+        val current = pickup
+        val mine = myLocation
+        val vehicleLat = current?.vehicleLatitude
+        val vehicleLng = current?.vehicleLongitude
+        val route = if (current?.state == PickupStatus.State.ON_THE_WAY && mine != null && vehicleLat != null && vehicleLng != null) {
+            if (markers.none { it.kind == MapMarker.Kind.CAR }) {
+                markers += MapMarker("car:pickup", current.driverName, MapMarker.Kind.CAR, vehicleLat, vehicleLng)
+            }
+            listOf(
+                MapMarker("from", "", MapMarker.Kind.CAR, vehicleLat, vehicleLng),
+                MapMarker("to", "", MapMarker.Kind.ME, mine.latitude, mine.longitude),
+            )
+        } else null
+        // 나는 맨 위에 보이도록 마지막에 넣는다.
+        myLocation?.let { markers += MapMarker(me.id, "나", MapMarker.Kind.ME, it.latitude, it.longitude) }
+        map.show(markers, route)
     }
 
     private fun addEmpty(list: LinearLayout, message: String) {

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 이름 한 줄 입력 대화상자 본문. 크기는 앱마다 다른 Pleos dimens(차량 / 폰)를 따른다. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/pleos_card_padding"
+    android:paddingTop="@dimen/pleos_gap"
+    android:paddingEnd="@dimen/pleos_card_padding">
+
+    <TextView
+        android:id="@+id/inputLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+    <EditText
+        android:id="@+id/inputText"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/pleos_button_height_large"
+        android:background="@drawable/pleos_bg_input"
+        android:imeOptions="actionDone|flagNoExtractUi|flagNoFullscreen"
+        android:importantForAutofill="no"
+        android:inputType="text"
+        android:paddingStart="@dimen/pleos_button_padding_horizontal"
+        android:paddingEnd="@dimen/pleos_button_padding_horizontal"
+        android:singleLine="true"
+        android:textAppearance="@style/TextAppearance.Pleos.Body"
+        android:textColorHint="@color/pleos_text_quaternary" />
+
+    <TextView
+        android:id="@+id/inputCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="end"
+        android:textAppearance="@style/TextAppearance.Pleos.Label" />
+</LinearLayout>

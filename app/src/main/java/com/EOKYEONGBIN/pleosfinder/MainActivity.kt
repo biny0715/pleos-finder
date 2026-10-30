@@ -7,6 +7,7 @@ import android.transition.TransitionManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -24,6 +25,7 @@ import com.EOKYEONGBIN.pleosfinder.core.Member
 import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 import com.EOKYEONGBIN.pleosfinder.core.Relation
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
+import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosToast
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupState
 import java.text.SimpleDateFormat
@@ -98,6 +100,7 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.profileChip).setOnClickListener { showProfileMenu() }
         pickupActionButton.setOnClickListener { session.stopPickup() }
+        findViewById<Button>(R.id.groupRenameButton).setOnClickListener { openGroup()?.let(::showRenameGroup) }
         findViewById<Button>(R.id.groupCloseButton).setOnClickListener {
             openGroupId = null
             render()
@@ -142,12 +145,25 @@ class MainActivity : AppCompatActivity() {
         val group = openGroup()
         if (group == null) openGroupId = null
         val split = group != null
-        if (split != (groupPanel.visibility == View.VISIBLE)) {
-            // 한 칸 ↔ 두 칸 전환을 부드럽게 (ivi_motion_duration_medium1 = 250ms)
-            TransitionManager.beginDelayedTransition(contentRow, AutoTransition().setDuration(250))
-            groupPanel.visibility = if (split) View.VISIBLE else View.GONE
-        }
+        // 내용을 먼저 채워야 열릴 때 빈 패널이 늘어나며 줄이 하나씩 튀어나오지 않는다.
         if (group != null) renderGroup(group)
+        if (split != (groupPanel.visibility == View.VISIBLE)) {
+            // 한 칸 ↔ 두 칸 전환 (ivi_motion_duration_medium1 = 250ms)
+            groupPanel.animate().cancel()
+            if (split) {
+                // 다 채운 패널이 오른쪽에서 살짝 밀려 들어오며 나타난다.
+                groupPanel.alpha = 0f
+                groupPanel.translationX = dp(64).toFloat()
+                groupPanel.visibility = View.VISIBLE
+                groupPanel.animate().alpha(1f).translationX(0f)
+                    .setDuration(250).setInterpolator(DecelerateInterpolator()).start()
+            } else {
+                groupPanel.alpha = 1f
+                groupPanel.translationX = 0f
+                TransitionManager.beginDelayedTransition(contentRow, AutoTransition().setDuration(250))
+                groupPanel.visibility = View.GONE
+            }
+        }
     }
 
     private fun openGroup(): FinderGroup? = openGroupId?.let { id -> session.myGroups().firstOrNull { it.id == id } }
@@ -345,6 +361,8 @@ class MainActivity : AppCompatActivity() {
     private fun renderGroup(group: FinderGroup) {
         val now = System.currentTimeMillis()
         groupName.text = group.name
+        // 이름은 그룹을 만든 사람만 바꾼다.
+        findViewById<View>(R.id.groupRenameButton).visibility = if (group.ownerId == session.me.id) View.VISIBLE else View.GONE
         groupMembers.removeAllViews()
         val members = group.members.filter { it.status != InviteStatus.DECLINED }
             .sortedWith(compareBy({ it.accountId != session.me.id }, { it.status != InviteStatus.ACCEPTED }))
@@ -431,20 +449,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showCreateGroup() {
-        val input = EditText(this).apply {
-            setText("새 그룹")
-            setSelection(text.length)
+        PleosTextInputDialog.show(
+            this, title = "그룹 만들기", label = "그룹 이름", hint = "예: 주말 캠핑", initial = "", confirmLabel = "만들기",
+        ) { name ->
+            openGroupId = session.createGroup(name)
+            render()
         }
-        AlertDialog.Builder(this)
-            .setTitle("그룹 만들기")
-            .setView(input)
-            .setPositiveButton("만들기") { _, _ ->
-                val name = input.text.toString().trim().ifEmpty { "새 그룹" }
-                openGroupId = session.createGroup(name)
-                render()
-            }
-            .setNegativeButton("취소", null)
-            .show()
+    }
+
+    private fun showRenameGroup(group: FinderGroup) {
+        PleosTextInputDialog.show(
+            this, title = "그룹 이름 변경", label = "그룹 이름", hint = "예: 주말 캠핑", initial = group.name, confirmLabel = "변경",
+        ) { name -> session.renameGroup(group, name) }
     }
 
     /** 차량끼리 위치 공유는 항상 일시적: 오늘 하루만, 또는 30분 단위로 최대 24시간 */
