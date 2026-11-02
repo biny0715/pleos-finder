@@ -57,6 +57,8 @@ object DemoSeed {
                 "ownerId" to DAD.id,
                 "members" to mapOf(
                     DAD.id to member(InviteStatus.ACCEPTED, SharePermission.OFF, 0L),
+                    // 엄마도 참여해 있어, 같은 차량에서 운전자를 바꿔 목적지 공유를 받아 볼 수 있다.
+                    MOM.id to member(InviteStatus.ACCEPTED, SharePermission.OFF, 0L),
                     MINSU.id to member(InviteStatus.ACCEPTED, SharePermission.TEMPORARY, now + 60 * 60_000L),
                     JIHOON.id to member(InviteStatus.PENDING, SharePermission.OFF, 0L),
                     SON.id to member(InviteStatus.PENDING, SharePermission.OFF, 0L),

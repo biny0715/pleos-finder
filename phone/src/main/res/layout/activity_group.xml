@@ -62,6 +62,44 @@
                 android:visibility="gone" />
         </LinearLayout>
 
+        <!-- 그룹에 공유된 목적지. 차량별 도착 예정은 아래 구성원 줄에 표시한다. -->
+        <LinearLayout
+            android:id="@+id/destinationCard"
+            style="@style/Widget.Pleos.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/pleos_gap"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/destinationTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+            <TextView
+                android:id="@+id/destinationName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+
+            <TextView
+                android:id="@+id/destinationDetail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+
+            <Button
+                android:id="@+id/destinationGoButton"
+                style="@style/Widget.Pleos.Button.Filled"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="길 안내" />
+        </LinearLayout>
+
         <LinearLayout
             style="@style/Widget.Pleos.Card"
             android:layout_width="match_parent"

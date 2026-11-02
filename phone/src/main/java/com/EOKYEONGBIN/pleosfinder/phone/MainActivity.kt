@@ -19,11 +19,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.ColorRes
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import com.EOKYEONGBIN.pleosfinder.core.Connection
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
+import com.EOKYEONGBIN.pleosfinder.core.DestinationShare
+import com.EOKYEONGBIN.pleosfinder.core.euro
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
+import com.EOKYEONGBIN.pleosfinder.core.iGa
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.Member
 import com.EOKYEONGBIN.pleosfinder.core.MemberLocation
@@ -33,11 +37,11 @@ import com.EOKYEONGBIN.pleosfinder.core.Relation
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.ShareRequest
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
-import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
 import com.EOKYEONGBIN.pleosfinder.core.ui.Favorites
 import com.EOKYEONGBIN.pleosfinder.core.ui.FinderMap
 import com.EOKYEONGBIN.pleosfinder.core.ui.MapMarker
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
+import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -93,6 +97,8 @@ class MainActivity : AppCompatActivity() {
     private var vehicleLocations: Map<String, VehicleLocation> = emptyMap()
     private var request: ShareRequest? = null
     private var groups: List<FinderGroup> = emptyList()
+    private var destinationShares: Map<String, DestinationShare> = emptyMap()
+    private val promptedShares = mutableSetOf<String>()
     private val subscriptions = mutableListOf<Subscription>()
     private val contactSubscriptions = mutableMapOf<String, List<Subscription>>()
 
@@ -264,6 +270,11 @@ class MainActivity : AppCompatActivity() {
             syncContactSubscriptions()
             if (groups.any { it.memberOf(me.id)?.isSharing() == true }) ensureService()
             render()
+            promptDestinations()
+        }
+        subscriptions += repository.observeDestinationShares {
+            destinationShares = it
+            promptDestinations()
         }
         render()
     }
@@ -366,14 +377,14 @@ class MainActivity : AppCompatActivity() {
         if (invite != null) {
             val inviter = person(invite.otherId).name
             val label = if (invite.relation == Relation.FAMILY) "가족" else "친구"
-            inviteTitle.text = "${inviter}가 ${label}으로 초대했어요"
+            inviteTitle.text = "${inviter.iGa} ${label.euro} 초대했어요"
             inviteDetail.text = "${inviter}에게 내 위치를 어떻게 공유할까요?"
         }
 
         val pending = request?.takeIf { it.isPendingFresh() }
         requestCard.visibility = if (pending != null) View.VISIBLE else View.GONE
         if (pending != null) {
-            requestTitle.text = "${pending.requesterName}가 픽업하러 가려고 해요"
+            requestTitle.text = "${pending.requesterName.iGa} 픽업하러 가려고 해요"
             requestDetail.text = "${pending.requesterName}에게 위치를 공유할까요? 픽업이 끝나면 공유도 끝나요."
         }
 
@@ -510,7 +521,7 @@ class MainActivity : AppCompatActivity() {
             val joined = group.members.count { it.status == InviteStatus.ACCEPTED }
             val owner = person(group.ownerId).name
             if (mine.status == InviteStatus.PENDING) {
-                val row = Row.add(groupList).bind(group.name, "", false, false, "${owner}가 초대했어요 · 구성원 ${joined}명", CoreR.color.pleos_informative_positive)
+                val row = Row.add(groupList).bind(group.name, "", false, false, "${owner.iGa} 초대했어요 · 구성원 ${joined}명", CoreR.color.pleos_informative_positive)
                 row.groupIcon()
                 row.addAction(getString(R.string.action_join_group), filled = true) {
                     repository.setGroupMember(group.id, mine.copy(status = InviteStatus.ACCEPTED))
@@ -539,6 +550,30 @@ class MainActivity : AppCompatActivity() {
             foreground = ContextCompat.getDrawable(this@MainActivity, CoreR.drawable.pleos_ic_group)
             foregroundGravity = Gravity.CENTER
         }
+    }
+
+    // ---- 그룹 목적지 공유 ----
+
+    /** 참여한 그룹에 새로 공유된 목적지로 갈지 한 번씩 묻는다. */
+    private fun promptDestinations() {
+        for (share in destinationShares.values) {
+            val group = groups.firstOrNull { it.id == share.groupId && it.memberOf(me.id)?.status == InviteStatus.ACCEPTED } ?: continue
+            if (!share.awaits(me.id) || !share.isPromptable() || !promptedShares.add(share.id)) continue
+            val from = person(share.fromId).name
+            val place = listOfNotNull(share.name, share.address.ifBlank { null }).joinToString("\n")
+            AlertDialog.Builder(this)
+                .setTitle("목적지 공유")
+                .setMessage("${from.iGa} '${group.name}' 그룹에 목적지를 공유했어요.\n\n$place\n\n이 목적지로 길 안내를 시작할까요?")
+                .setPositiveButton("길 안내") { _, _ -> respondDestination(share, accept = true) }
+                .setNegativeButton("거절") { _, _ -> respondDestination(share, accept = false) }
+                .show()
+        }
+    }
+
+    private fun respondDestination(share: DestinationShare, accept: Boolean) {
+        repository.respondDestination(share.groupId, share.id, me.id, accept)
+        NotificationManagerCompat.from(this).cancel(Directions.notificationId(share))
+        if (accept) Directions.open(this, share)
     }
 
     // ---- 추가 · 만들기 ----
@@ -588,7 +623,7 @@ class MainActivity : AppCompatActivity() {
         pickupMetrics.visibility = if (current?.state == PickupStatus.State.ON_THE_WAY) View.VISIBLE else View.GONE
         when (current?.state) {
             PickupStatus.State.ON_THE_WAY -> {
-                pickupHeadline.text = "${current.driverName}가 오고 있어요"
+                pickupHeadline.text = "${current.driverName.iGa} 오고 있어요"
                 pickupDetail.text = "내 위치가 바뀌면 길 안내도 따라 바뀌어요."
                 val distance = current.remainDistanceMeters
                 val time = current.remainTimeSeconds
@@ -596,7 +631,7 @@ class MainActivity : AppCompatActivity() {
                 remainTime.text = if (time == null) "–" else "${(time + 59) / 60}분"
             }
             PickupStatus.State.ARRIVED -> {
-                pickupHeadline.text = "${current.driverName}가 도착했어요"
+                pickupHeadline.text = "${current.driverName.iGa} 도착했어요"
                 pickupDetail.text = "차가 근처에 있어요."
             }
             else -> Unit

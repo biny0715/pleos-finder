@@ -255,6 +255,66 @@
                             android:orientation="vertical" />
                     </ScrollView>
 
+                    <!-- 그룹에 공유된 목적지. 구성원별 도착 예정은 위 구성원 줄에 표시한다. -->
+                    <LinearLayout
+                        android:id="@+id/groupDestinationBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/pleos_bg_button_basic"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="24dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/groupDestinationTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+                            <TextView
+                                android:id="@+id/groupDestinationName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+
+                            <TextView
+                                android:id="@+id/groupDestinationDetail"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:maxLines="2"
+                                android:ellipsize="end"
+                                android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+                        </LinearLayout>
+
+                        <Button
+                            android:id="@+id/groupDestinationGoButton"
+                            style="@style/Widget.Pleos.Button.Filled"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="24dp"
+                            android:text="@string/action_start_navigation" />
+
+                        <Button
+                            android:id="@+id/groupDestinationClearButton"
+                            style="@style/Widget.Pleos.Button.Basic"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="24dp"
+                            android:text="@string/action_end_destination_share" />
+                    </LinearLayout>
+
                     <!-- 받은 그룹 초대 -->
                     <LinearLayout
                         android:id="@+id/groupInviteBox"
@@ -344,13 +404,30 @@
                             android:layout_marginTop="12dp"
                             android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
 
-                        <Button
-                            android:id="@+id/groupInviteButton"
-                            style="@style/Widget.Pleos.Button.Basic"
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="24dp"
-                            android:text="@string/action_invite_from_contacts" />
+                            android:orientation="horizontal">
+
+                            <!-- 내 목적지를 그룹에 공유해 같은 곳으로 함께 간다. -->
+                            <Button
+                                android:id="@+id/groupDestinationShareButton"
+                                style="@style/Widget.Pleos.Button.Filled"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/action_share_destination" />
+
+                            <Button
+                                android:id="@+id/groupInviteButton"
+                                style="@style/Widget.Pleos.Button.Basic"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="24dp"
+                                android:layout_weight="1"
+                                android:text="@string/action_invite_from_contacts" />
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
         </LinearLayout>

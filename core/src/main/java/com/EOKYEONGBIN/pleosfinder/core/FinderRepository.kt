@@ -49,6 +49,17 @@ interface FinderRepository {
     fun setGroupMember(groupId: String, member: GroupMember)
     fun observeGroups(onUpdate: (List<FinderGroup>) -> Unit): Subscription
 
+    /** 그룹 목적지 공유. 그룹의 이전 공유를 바꾸고 새 공유 id 를 돌려준다(share.id 는 무시). */
+    fun shareDestination(share: DestinationShare): String
+    fun clearDestination(groupId: String)
+    fun respondDestination(groupId: String, shareId: String, accountId: String, accepted: Boolean)
+
+    /** null 이면 지운다(안내를 끝냄). */
+    fun publishDestinationProgress(groupId: String, shareId: String, accountId: String, progress: DestinationProgress?)
+
+    /** 그룹 id → 지금 공유 중인 목적지 */
+    fun observeDestinationShares(onUpdate: (Map<String, DestinationShare>) -> Unit): Subscription
+
     /** 시연 데이터로 되돌린다(가족: 아빠·엄마, 친구: 김민수·박지훈, 그룹: 주말 캠핑). */
     fun resetDemo()
 }

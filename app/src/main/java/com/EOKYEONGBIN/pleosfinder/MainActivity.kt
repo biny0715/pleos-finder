@@ -22,7 +22,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
+import com.EOKYEONGBIN.pleosfinder.core.DestinationShare
+import com.EOKYEONGBIN.pleosfinder.core.euro
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
+import com.EOKYEONGBIN.pleosfinder.core.gwaWa
+import com.EOKYEONGBIN.pleosfinder.core.iGa
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.Member
 import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
@@ -135,6 +139,15 @@ class MainActivity : AppCompatActivity() {
             openGroupId = null
         }
         findViewById<Button>(R.id.groupInviteButton).setOnClickListener { openGroup()?.let(::showGroupInvite) }
+        findViewById<Button>(R.id.groupDestinationShareButton).setOnClickListener { openGroup()?.let(::showShareDestination) }
+        findViewById<Button>(R.id.groupDestinationGoButton).setOnClickListener {
+            openGroup()?.let(session::destinationOf)?.let(session::acceptDestination)
+        }
+        findViewById<Button>(R.id.groupDestinationClearButton).setOnClickListener { openGroup()?.let(session::clearDestination) }
+        // 그룹 목적지 공유를 알림으로도 받는다.
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 0)
+        }
         groupExtendButton.setOnClickListener { openGroup()?.let(session::extendGroupShare) }
         groupShareGroup.setOnCheckedChangeListener { _, checkedId ->
             if (rendering) return@setOnCheckedChangeListener
@@ -154,6 +167,7 @@ class MainActivity : AppCompatActivity() {
         session.onChanged = ::render
         session.onMessage = toast::show
         session.onLocationsChanged = ::renderMap
+        session.onDestinationShared = ::showDestinationPrompt
         render()
     }
 
@@ -161,6 +175,7 @@ class MainActivity : AppCompatActivity() {
         session.onChanged = null
         session.onMessage = null
         session.onLocationsChanged = null
+        session.onDestinationShared = null
         mapView.onStop()
         super.onStop()
     }
@@ -243,6 +258,58 @@ class MainActivity : AppCompatActivity() {
             )
         } else null
         map.show(markers, route)
+    }
+
+    private fun renderGroupDestination(share: DestinationShare?, pending: Boolean) {
+        val box = findViewById<View>(R.id.groupDestinationBox)
+        box.visibility = if (share != null && !pending) View.VISIBLE else View.GONE
+        if (share == null || pending) return
+        val mine = share.fromId == session.me.id
+        val following = session.isFollowing(share)
+        val going = share.responses.count { it.value }
+        findViewById<TextView>(R.id.groupDestinationTitle).text =
+            if (mine) "내가 공유한 목적지" else "${session.person(share.fromId).name.iGa} 공유한 목적지"
+        findViewById<TextView>(R.id.groupDestinationName).text = share.name
+        findViewById<TextView>(R.id.groupDestinationDetail).text =
+            listOfNotNull(share.address.ifBlank { null }, "${going}명 함께 가는 중", if (following) "안내 중" else null).joinToString(" · ")
+        findViewById<View>(R.id.groupDestinationGoButton).visibility = if (following) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.groupDestinationClearButton).visibility = if (mine) View.VISIBLE else View.GONE
+    }
+
+    /** 공유할 목적지 고르기: 지금 안내 중인 목적지, 최근 목적지, 지금 내 차 위치 */
+    private fun showShareDestination(group: FinderGroup) {
+        session.loadSharePlaces { places ->
+            if (isFinishing) return@loadSharePlaces
+            if (places.isEmpty()) {
+                toast.show("공유할 목적지가 없어요. 내비에서 목적지를 정한 뒤 다시 시도해 주세요.")
+                return@loadSharePlaces
+            }
+            val labels = places.map {
+                when (it.kind) {
+                    SharePlace.Kind.CURRENT -> "지금 안내 중 · ${it.name}"
+                    SharePlace.Kind.RECENT -> "최근 목적지 · ${it.name}"
+                    SharePlace.Kind.HERE -> "지금 내 차 위치 (여기로 모이기)"
+                }
+            }
+            AlertDialog.Builder(this)
+                .setTitle("'${group.name}' 그룹에 공유할 목적지")
+                .setItems(labels.toTypedArray()) { _, which -> session.shareDestination(group, places[which]) }
+                .setNegativeButton("취소", null)
+                .show()
+        }
+    }
+
+    /** 같은 그룹 구성원이 공유한 목적지로 갈지 묻는다. */
+    private fun showDestinationPrompt(group: FinderGroup, share: DestinationShare) {
+        if (isFinishing) return
+        val from = session.person(share.fromId).name
+        val place = listOfNotNull(share.name, share.address.ifBlank { null }).joinToString("\n")
+        AlertDialog.Builder(this)
+            .setTitle("목적지 공유")
+            .setMessage("${from.iGa} '${group.name}' 그룹에 목적지를 공유했어요.\n\n$place\n\n이 목적지로 안내를 시작할까요?")
+            .setPositiveButton(R.string.action_start_navigation) { _, _ -> session.acceptDestination(share) }
+            .setNegativeButton(R.string.action_decline) { _, _ -> session.declineDestination(share) }
+            .show()
     }
 
     private fun openGroup(): FinderGroup? = openGroupId?.let { id -> session.myGroups().firstOrNull { it.id == id } }
@@ -527,6 +594,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderGroup(group: FinderGroup) {
         val now = System.currentTimeMillis()
+        val destination = session.destinationOf(group)
         groupName.text = group.name
         // 이름은 그룹을 만든 사람만 바꾼다.
         findViewById<View>(R.id.groupRenameButton).visibility = if (group.ownerId == session.me.id) View.VISIBLE else View.GONE
@@ -539,13 +607,16 @@ class MainActivity : AppCompatActivity() {
             val vehicles = DemoDirectory.vehiclesDrivenBy(m.accountId)
             val row = contactRow(groupMembers, if (isMe) "${member.name} (나)" else member.name, DemoDirectory.hasFinderPhone(m.accountId), vehicles.isNotEmpty())
             val carText = vehicles.firstNotNullOfOrNull { v -> session.vehicleLocations[v.id]?.takeIf { it.driverId == m.accountId }?.let { " · ${v.name} 운전 중" } } ?: ""
-            row.status(m.shareText(now) + carText, if (m.isSharing(now)) CoreR.color.pleos_informative_active else CoreR.color.pleos_text_quaternary)
+            // 공유 목적지로 가는 차량은 남은 거리·시간과 도착 예정 시각을 함께 보여 준다.
+            val progressText = destination?.progress?.get(m.accountId)?.takeUnless { it.isStale(now) }?.let { " · ${it.describe(now)}" } ?: ""
+            row.status(m.shareText(now) + carText + progressText, if (m.isSharing(now)) CoreR.color.pleos_informative_active else CoreR.color.pleos_text_quaternary)
             row.view.isClickable = false
         }
 
         val mine = group.memberOf(session.me.id)
         val pending = mine?.status == InviteStatus.PENDING
         groupInviteBox.visibility = if (pending) View.VISIBLE else View.GONE
+        renderGroupDestination(destination, pending)
         groupShareBox.visibility = if (pending) View.GONE else View.VISIBLE
         if (mine == null || pending) return
 
@@ -573,7 +644,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showProfileMenu() {
         val drivers = session.drivers
-        val items = drivers.map { if (it == session.me) "${it.name} (지금 운전 중)" else "${it.name}(으)로 전환" } + "시연 데이터 초기화"
+        val items = drivers.map { if (it == session.me) "${it.name} (지금 운전 중)" else "${it.name.euro} 전환" } + "시연 데이터 초기화"
         AlertDialog.Builder(this)
             .setTitle("${session.vehicle.name} 운전자")
             .setItems(items.toTypedArray()) { _, which ->
@@ -643,7 +714,7 @@ class MainActivity : AppCompatActivity() {
         val items = mutableListOf("오늘 하루만 공유 (오늘 밤 12시까지)", "시간 설정 (30분 단위, 최대 24시간)")
         if (until != null) items += "공유 중지"
         AlertDialog.Builder(this)
-            .setTitle("${member.name}와(과) 차량 위치 공유")
+            .setTitle("${member.name.gwaWa} 차량 위치 공유")
             .setItems(items.toTypedArray()) { _, which ->
                 when (which) {
                     0 -> session.shareVehicle(member, endOfToday)
@@ -670,7 +741,7 @@ class MainActivity : AppCompatActivity() {
         view.findViewById<View>(R.id.durationPlus).setOnClickListener { steps++; update() }
         update()
         AlertDialog.Builder(this)
-            .setTitle("${member.name}와(과) 공유할 시간")
+            .setTitle("${member.name.gwaWa} 공유할 시간")
             .setView(view)
             .setPositiveButton("공유 시작") { _, _ -> session.shareVehicle(member, System.currentTimeMillis() + steps * VehicleSession.TEMPORARY_STEP_MS) }
             .setNegativeButton("취소", null)

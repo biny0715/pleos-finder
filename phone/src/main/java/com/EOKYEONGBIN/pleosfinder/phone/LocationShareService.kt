@@ -19,7 +19,9 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
+import com.EOKYEONGBIN.pleosfinder.core.DestinationShare
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
+import com.EOKYEONGBIN.pleosfinder.core.iGa
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.MemberLocation
 import com.EOKYEONGBIN.pleosfinder.core.PickupStatus
@@ -43,6 +45,8 @@ class LocationShareService : Service(), LocationListener {
     private var notifiedRequestAt = 0L
     private var receivingUpdates = false
     private var groups: List<FinderGroup> = emptyList()
+    private var destinationShares: List<DestinationShare> = emptyList()
+    private val notifiedShares = mutableSetOf<String>()
     private val handler = android.os.Handler(Looper.getMainLooper())
 
     /** 그룹의 일시적 허용 시간이 지나면 공유를 멈추도록 주기적으로 다시 판단한다. */
@@ -86,6 +90,11 @@ class LocationShareService : Service(), LocationListener {
             subscriptions += repository.observeGroups { all ->
                 groups = all.filter { it.memberOf(me.id)?.status == InviteStatus.ACCEPTED }
                 refreshSharing()
+                notifyDestinations()
+            }
+            subscriptions += repository.observeDestinationShares {
+                destinationShares = it.values.toList()
+                notifyDestinations()
             }
             handler.postDelayed(groupExpiryCheck, GROUP_CHECK_MS)
         }
@@ -177,8 +186,8 @@ class LocationShareService : Service(), LocationListener {
         lastPickupState = status.state
         if (status.isStale()) return
         val text = when (status.state) {
-            PickupStatus.State.ON_THE_WAY -> "${status.driverName}가 픽업하러 오고 있어요"
-            PickupStatus.State.ARRIVED -> "${status.driverName}가 도착했어요"
+            PickupStatus.State.ON_THE_WAY -> "${status.driverName.iGa} 픽업하러 오고 있어요"
+            PickupStatus.State.ARRIVED -> "${status.driverName.iGa} 도착했어요"
             PickupStatus.State.CANCELLED -> return
         }
         notificationManager.notify(
@@ -190,6 +199,26 @@ class LocationShareService : Service(), LocationListener {
                 .setAutoCancel(true)
                 .build()
         )
+    }
+
+    /** 내가 참여한 그룹에 새 목적지가 공유되면 알린다. 누르면 앱에서 길 안내 여부를 묻는다. */
+    private fun notifyDestinations() {
+        val me = FinderServices.me
+        for (share in destinationShares) {
+            val group = groups.firstOrNull { it.id == share.groupId } ?: continue
+            if (!share.awaits(me.id) || !share.isPromptable() || !notifiedShares.add(share.id)) continue
+            val from = DemoDirectory.memberFor(me.id, share.fromId).name
+            notificationManager.notify(
+                Directions.notificationId(share),
+                Notification.Builder(this, PICKUP_CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.ic_dialog_map)
+                    .setContentTitle("${from.iGa} '${group.name}' 그룹에 목적지를 공유했어요")
+                    .setContentText("${share.name} · 눌러서 길 안내를 시작하세요.")
+                    .setContentIntent(openAppIntent())
+                    .setAutoCancel(true)
+                    .build()
+            )
+        }
     }
 
     private fun showRequestNotification(request: ShareRequest) {
@@ -204,7 +233,7 @@ class LocationShareService : Service(), LocationListener {
             REQUEST_NOTIFICATION_ID,
             Notification.Builder(this, PICKUP_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-                .setContentTitle("${request.requesterName}가 픽업하러 가려고 해요")
+                .setContentTitle("${request.requesterName.iGa} 픽업하러 가려고 해요")
                 .setContentText("${request.requesterName}에게 위치를 공유할까요? 픽업이 끝나면 공유도 끝나요.")
                 .setContentIntent(openAppIntent())
                 .addAction(Notification.Action.Builder(icon, getString(R.string.action_accept_request), accept).build())

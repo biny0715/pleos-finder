@@ -16,6 +16,9 @@
     <string name="action_cancel_request">요청 취소</string>
     <string name="action_close">닫기</string>
     <string name="action_rename">이름 변경</string>
+    <string name="action_share_destination">목적지 공유</string>
+    <string name="action_start_navigation">안내 시작</string>
+    <string name="action_end_destination_share">공유 끝내기</string>
     <string name="action_join_group">그룹 참여</string>
     <string name="action_extend_30">+30분</string>
     <string name="action_invite_from_contacts">연락처에서 초대</string>

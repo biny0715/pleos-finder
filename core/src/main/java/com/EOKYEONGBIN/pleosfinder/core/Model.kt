@@ -136,3 +136,63 @@ data class PickupStatus(
         const val STALE_MS = 10 * 60_000L
     }
 }
+
+/**
+ * 그룹에 공유한 목적지(그룹마다 마지막 하나). 받은 구성원이 수락하면 차량은 내비, 폰은 지도 앱으로 길 안내를 시작하고,
+ * 차량은 목적지까지 남은 거리·시간(progress)을 올려 그룹이 서로의 도착 예정 시간을 본다.
+ */
+data class DestinationShare(
+    val groupId: String,
+    val id: String,
+    val fromId: String,
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double,
+    val poiId: String,
+    val poiSubId: String,
+    val createdAt: Long,
+    /** 계정 id → 수락(true) / 거절(false) */
+    val responses: Map<String, Boolean> = emptyMap(),
+    /** 계정 id(차량 운전자) → 목적지까지 남은 거리·시간 */
+    val progress: Map<String, DestinationProgress> = emptyMap(),
+) {
+    /** 그룹 화면에 보여 주는 기간 */
+    fun isActive(now: Long = System.currentTimeMillis()) = now - createdAt < ACTIVE_MS
+
+    /** 받은 사람에게 수락을 묻는 기간. 오래된 공유로 갑자기 팝업이 뜨지 않게 한다. */
+    fun isPromptable(now: Long = System.currentTimeMillis()) = now - createdAt < PROMPT_MS
+
+    /** 아직 답하지 않은 받는 사람인지 */
+    fun awaits(accountId: String) = accountId != fromId && accountId !in responses
+
+    companion object {
+        const val ACTIVE_MS = 6 * 60 * 60_000L
+        const val PROMPT_MS = 30 * 60_000L
+    }
+}
+
+data class DestinationProgress(
+    val remainDistanceMeters: Int,
+    val remainTimeSeconds: Int,
+    val arrived: Boolean,
+    val updatedAt: Long,
+) {
+    /** 마지막으로 받은 남은 시간으로 계산한 도착 예정 시각 */
+    val arrivalAt: Long get() = updatedAt + remainTimeSeconds * 1000L
+
+    fun isStale(now: Long = System.currentTimeMillis()) = !arrived && now - updatedAt > STALE_MS
+
+    /** "목적지까지 3.2km · 12분 · 오후 3:40 도착 예정" / "목적지 도착" */
+    fun describe(now: Long = System.currentTimeMillis()): String {
+        if (arrived) return "목적지 도착"
+        val km = "%.1fkm".format(remainDistanceMeters / 1000.0)
+        val minutes = maxOf(1, ((arrivalAt - now) / 60_000L).toInt())
+        val at = java.text.SimpleDateFormat("a h:mm", java.util.Locale.KOREA).format(java.util.Date(arrivalAt))
+        return "목적지까지 $km · ${minutes}분 · $at 도착 예정"
+    }
+
+    companion object {
+        const val STALE_MS = 5 * 60_000L
+    }
+}

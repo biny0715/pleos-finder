@@ -15,17 +15,20 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
+import com.EOKYEONGBIN.pleosfinder.core.DestinationShare
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
 import com.EOKYEONGBIN.pleosfinder.core.GroupMember
+import com.EOKYEONGBIN.pleosfinder.core.iGa
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
-import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
 import com.EOKYEONGBIN.pleosfinder.core.ui.Favorites
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
+import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -51,6 +54,7 @@ class GroupActivity : AppCompatActivity() {
     private var group: FinderGroup? = null
     private val favorites by lazy { Favorites(this) }
     private var vehicleLocations: Map<String, VehicleLocation> = emptyMap()
+    private var destination: DestinationShare? = null
     private val subscriptions = mutableListOf<Subscription>()
     private val handler = Handler(Looper.getMainLooper())
 
@@ -112,6 +116,12 @@ class GroupActivity : AppCompatActivity() {
             if (value != mine.effectiveShare()) apply(mine.withShare(value))
         }
         extendButton.setOnClickListener { group?.memberOf(me.id)?.let { apply(it.extended()) } }
+        findViewById<Button>(R.id.destinationGoButton).setOnClickListener {
+            val share = destination ?: return@setOnClickListener
+            repository.respondDestination(share.groupId, share.id, me.id, true)
+            NotificationManagerCompat.from(this).cancel(Directions.notificationId(share))
+            Directions.open(this, share)
+        }
     }
 
     override fun onStart() {
@@ -122,6 +132,10 @@ class GroupActivity : AppCompatActivity() {
         }
         subscriptions += repository.observeVehicleLocations {
             vehicleLocations = it
+            render()
+        }
+        subscriptions += repository.observeDestinationShares { shares ->
+            destination = shares[groupId]?.takeIf { it.isActive() }
             render()
         }
         handler.post(tick)
@@ -154,6 +168,19 @@ class GroupActivity : AppCompatActivity() {
         if (member.share != SharePermission.OFF) LocationShareService.start(this)
     }
 
+    private fun renderDestination(current: FinderGroup) {
+        val share = destination
+        val joined = current.memberOf(me.id)?.status == InviteStatus.ACCEPTED
+        findViewById<android.view.View>(R.id.destinationCard).visibility =
+            if (share != null && joined) android.view.View.VISIBLE else android.view.View.GONE
+        if (share == null || !joined) return
+        val going = share.responses.count { it.value }
+        findViewById<TextView>(R.id.destinationTitle).text = "${DemoDirectory.memberFor(me.id, share.fromId).name.iGa} 공유한 목적지"
+        findViewById<TextView>(R.id.destinationName).text = share.name
+        findViewById<TextView>(R.id.destinationDetail).text =
+            listOfNotNull(share.address.ifBlank { null }, "${going}명 함께 가는 중").joinToString(" · ")
+    }
+
     private fun render() {
         val current = group ?: return
         val now = System.currentTimeMillis()
@@ -176,15 +203,19 @@ class GroupActivity : AppCompatActivity() {
                 vehicleLocations[v.id]?.takeIf { it.driverId == m.accountId && m.isSharing(now) }?.let { v to it }
             }
             val carText = car?.let { (v, location) -> " · ${v.name} 운전 중 · ${ago(location.updatedAt)} 위치" } ?: ""
+            // 공유 목적지로 가는 차량은 남은 거리·시간과 도착 예정 시각(차량이 올린 그대로)을 보여 준다.
+            val progressText = destination?.progress?.get(m.accountId)?.takeUnless { it.isStale(now) }?.let { " · ${it.describe(now)}" } ?: ""
             Row.add(memberList).bind(
                 title = if (m.accountId == me.id) "${member.name} (나)" else member.name,
                 avatarText = member.name.take(1),
                 showPerson = DemoDirectory.hasFinderPhone(m.accountId),
                 showCar = vehicles.isNotEmpty(),
-                statusText = m.shareText(now) + carText,
+                statusText = m.shareText(now) + carText + progressText,
                 dotColor = if (m.isSharing(now)) CoreR.color.pleos_informative_active else CoreR.color.pleos_text_quaternary,
             )
         }
+
+        renderDestination(current)
 
         val mine = current.memberOf(me.id) ?: return
         val shown = mine.effectiveShare(now)

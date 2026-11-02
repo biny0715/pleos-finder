@@ -8,6 +8,8 @@
 
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+    <!-- 그룹 목적지 공유 알림 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".PleosFinderApp"
@@ -32,6 +34,11 @@
                 android:name="distractionOptimized"
                 android:value="true" />
         </activity>
+
+        <!-- 그룹 목적지 공유 알림의 '안내 시작' / '거절' -->
+        <receiver
+            android:name=".DestinationActionReceiver"
+            android:exported="false" />
 
         <!--
           Gleo AI 음성 명령 수신. 함수 이름은 assets/schema.json 의 actionCalls 와 같아야 한다.

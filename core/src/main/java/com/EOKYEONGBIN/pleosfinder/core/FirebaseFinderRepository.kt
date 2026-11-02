@@ -237,6 +237,92 @@ class FirebaseFinderRepository(
             )
         }
 
+    // ---- 그룹 목적지 공유: destinationShares/<그룹 id>/<공유 id> ----
+
+    override fun shareDestination(share: DestinationShare): String {
+        val groupRef = root.child("destinationShares").child(share.groupId)
+        val id = groupRef.push().key!!
+        // 그룹마다 마지막 공유 하나만 남긴다.
+        groupRef.setValue(
+            mapOf(
+                id to mapOf(
+                    "fromId" to share.fromId,
+                    "name" to share.name,
+                    "address" to share.address,
+                    "latitude" to share.latitude,
+                    "longitude" to share.longitude,
+                    "poiId" to share.poiId,
+                    "poiSubId" to share.poiSubId,
+                    "createdAt" to share.createdAt,
+                    "responses" to share.responses,
+                )
+            )
+        )
+        return id
+    }
+
+    override fun clearDestination(groupId: String) {
+        root.child("destinationShares").child(groupId).removeValue()
+    }
+
+    override fun respondDestination(groupId: String, shareId: String, accountId: String, accepted: Boolean) {
+        root.child("destinationShares").child(groupId).child(shareId).child("responses").child(accountId).setValue(accepted)
+    }
+
+    override fun publishDestinationProgress(groupId: String, shareId: String, accountId: String, progress: DestinationProgress?) {
+        val ref = root.child("destinationShares").child(groupId).child(shareId).child("progress").child(accountId)
+        if (progress == null) {
+            ref.removeValue()
+        } else {
+            ref.setValue(
+                mapOf(
+                    "remainDistance" to progress.remainDistanceMeters,
+                    "remainTime" to progress.remainTimeSeconds,
+                    "arrived" to progress.arrived,
+                    "updatedAt" to progress.updatedAt,
+                )
+            )
+        }
+    }
+
+    override fun observeDestinationShares(onUpdate: (Map<String, DestinationShare>) -> Unit): Subscription =
+        observe(root.child("destinationShares")) { snapshot ->
+            onUpdate(
+                snapshot.children.mapNotNull { group ->
+                    val groupId = group.key ?: return@mapNotNull null
+                    // 지난 공유에 늦게 도착한 응답이 남아 있을 수 있어, 내용이 온전한 것 중 가장 최근 것을 쓴다.
+                    val share = group.children.mapNotNull { s ->
+                        val createdAt = s.long("createdAt") ?: return@mapNotNull null
+                        DestinationShare(
+                            groupId = groupId,
+                            id = s.key ?: return@mapNotNull null,
+                            fromId = s.string("fromId"),
+                            name = s.string("name"),
+                            address = s.string("address"),
+                            latitude = s.double("latitude") ?: return@mapNotNull null,
+                            longitude = s.double("longitude") ?: return@mapNotNull null,
+                            poiId = s.string("poiId"),
+                            poiSubId = s.string("poiSubId"),
+                            createdAt = createdAt,
+                            responses = s.child("responses").children.mapNotNull { r ->
+                                val accepted = r.getValue(Boolean::class.java) ?: return@mapNotNull null
+                                (r.key ?: return@mapNotNull null) to accepted
+                            }.toMap(),
+                            progress = s.child("progress").children.mapNotNull { p ->
+                                (p.key ?: return@mapNotNull null) to DestinationProgress(
+                                    remainDistanceMeters = (p.long("remainDistance") ?: 0L).toInt(),
+                                    remainTimeSeconds = (p.long("remainTime") ?: 0L).toInt(),
+                                    arrived = p.child("arrived").getValue(Boolean::class.java) == true,
+                                    updatedAt = p.long("updatedAt") ?: 0L,
+                                )
+                            }.toMap(),
+                        )
+                    }.maxByOrNull { it.createdAt } ?: return@mapNotNull null
+                    groupId to share
+                }.toMap()
+            )
+        }
+
     override fun resetDemo() {
         root.setValue(DemoSeed.build(System.currentTimeMillis()))
     }

@@ -6,14 +6,23 @@ import android.os.Looper
 import android.util.Log
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.data.CurrentLocationInfo
+import ai.pleos.playground.navi.data.DestinationArrivedInfo
+import ai.pleos.playground.navi.data.DestinationInfo
+import ai.pleos.playground.navi.data.DrivingInfo
+import ai.pleos.playground.navi.data.RecentDestinationInfo
+import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import com.EOKYEONGBIN.pleosfinder.core.Connection
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
+import com.EOKYEONGBIN.pleosfinder.core.DestinationProgress
+import com.EOKYEONGBIN.pleosfinder.core.DestinationShare
+import com.EOKYEONGBIN.pleosfinder.core.euro
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
 import com.EOKYEONGBIN.pleosfinder.core.FinderRepository
 import com.EOKYEONGBIN.pleosfinder.core.FirebaseFinderRepository
 import com.EOKYEONGBIN.pleosfinder.core.GroupMember
+import com.EOKYEONGBIN.pleosfinder.core.gwaWa
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.Member
 import com.EOKYEONGBIN.pleosfinder.core.MemberLocation
@@ -45,7 +54,21 @@ data class Contact(
  * 이 차량(아이오닉5)에 로그인한 계정이 곧 운전자이고, 운전자를 바꾸면 연결·그룹·차량 위치 공유가 그 사람 기준으로 바뀐다.
  * 상태 변경과 리스너 호출은 모두 메인 스레드에서 한다.
  */
-class VehicleSession(context: Context) {
+/** 그룹에 공유할 수 있는 목적지 후보 */
+data class SharePlace(
+    val kind: Kind,
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double,
+    val poiId: String = "",
+    val poiSubId: String = "",
+) {
+    /** CURRENT = 지금 안내 중인 목적지, RECENT = 최근 목적지, HERE = 지금 내 차 위치(여기로 모이기) */
+    enum class Kind { CURRENT, RECENT, HERE }
+}
+
+class VehicleSession(private val context: Context) {
 
     val vehicle: VehicleInfo = DemoDirectory.IONIQ5
     val drivers: List<Member> = vehicle.driverIds.map(DemoDirectory::member)
@@ -95,10 +118,54 @@ class VehicleSession(context: Context) {
     /** 폰 위치처럼 목록은 그대로이고 지도만 바뀌는 변화 */
     var onLocationsChanged: (() -> Unit)? = null
 
+    // ---- 그룹 목적지 공유 ----
+
+    /** 그룹 id → 공유 중인 목적지 */
+    var destinationShares: Map<String, DestinationShare> = emptyMap()
+        private set
+
+    /** 같은 그룹 구성원이 목적지를 공유했을 때(화면이 열려 있으면 수락 팝업) */
+    var onDestinationShared: ((FinderGroup, DestinationShare) -> Unit)? = null
+    private val promptedShares = mutableSetOf<String>()
+
+    /** 지금 길 안내 중인 그룹 목적지(그룹 id, 공유 id). 남은 거리·시간을 그룹에 올린다. */
+    private var activeDestination: Pair<String, String>? = null
+        set(value) {
+            field = value
+            // 앱 프로세스가 다시 시작돼도 이어서 남은 거리·시간을 올리도록 운전자와 함께 저장한다.
+            prefs.edit().putString(KEY_ACTIVE_DESTINATION, value?.let { (g, s) -> "${me.id}|$g|$s" }).apply()
+        }
+    private var lastProgressAt = 0L
+    private var pendingPlaces: ((List<SharePlace>) -> Unit)? = null
+    private var currentDestination: DestinationInfo? = null
+    private var recentDestinations: List<RecentDestinationInfo>? = null
+
     private val naviEventListener = object : NaviHelperEventListener {
         override fun onError(naviErrorCode: NaviErrorCode) = showMessage("길 안내 오류: $naviErrorCode")
         override fun onCurrentLocationInfo(currentLocationInfo: CurrentLocationInfo) {
             mainHandler.post { onVehiclePosition(currentLocationInfo.latitude, currentLocationInfo.longitude) }
+        }
+        override fun onDestinationInfo(destinationInfo: DestinationInfo) {
+            mainHandler.post {
+                currentDestination = destinationInfo
+                deliverPlacesIfReady()
+            }
+        }
+        override fun onRecentDestinationInfo(recentDestinationInfo: List<RecentDestinationInfo>) {
+            mainHandler.post {
+                recentDestinations = recentDestinationInfo
+                deliverPlacesIfReady()
+            }
+        }
+        override fun onDrivingInfo(drivingInfo: DrivingInfo) {
+            val destination = drivingInfo.destination
+            mainHandler.post { onDestinationProgress(destination.distance, destination.duration) }
+        }
+        override fun onDestinationArrived(destinationArrivedInfo: DestinationArrivedInfo) {
+            mainHandler.post { onDestinationReached() }
+        }
+        override fun onRouteCancelled() {
+            mainHandler.post { endDestination() }
         }
     }
 
@@ -129,6 +196,17 @@ class VehicleSession(context: Context) {
         }
         repository.observeGroups {
             allGroups = it
+            checkIncomingDestinations()
+            notifyChanged()
+        }
+        restoreActiveDestination()
+        repository.observeDestinationShares {
+            destinationShares = it
+            // 따라가던 공유가 끝났거나 바뀌었으면 그만둔다.
+            activeDestination?.let { (groupId, shareId) ->
+                if (it[groupId]?.id != shareId) endDestination()
+            }
+            checkIncomingDestinations()
             notifyChanged()
         }
         mainHandler.post(pollVehiclePosition)
@@ -141,6 +219,7 @@ class VehicleSession(context: Context) {
         if (driver == me) return
         pickupRequester.cancel()
         pickupController.stop()
+        endDestination()
         if (naviConnected) naviHelper.removeListener(pickupController)
         accountSubscriptions.forEach { it.cancel() }
         accountSubscriptions.clear()
@@ -159,7 +238,8 @@ class VehicleSession(context: Context) {
         if (naviConnected) naviHelper.addListener(pickupController)
         accountSubscriptions += subscribeAccount()
         myPosition?.let { (lat, lng) -> publishVehicle(lat, lng) }
-        showMessage("${driver.name}(으)로 운전자를 바꿨어요. ${driver.name}의 공유 설정이 적용돼요.")
+        showMessage("${driver.name.euro} 운전자를 바꿨어요. ${driver.name}의 공유 설정이 적용돼요.")
+        checkIncomingDestinations()
         notifyChanged()
     }
 
@@ -372,7 +452,161 @@ class VehicleSession(context: Context) {
     val isPickupBusy: Boolean
         get() = pickupState is PickupState.WaitingForAcceptance || pickupState is PickupState.OnTheWay
 
-    fun startPickup(member: Member) = pickupRequester.request(member, permissionOf(member))
+    fun startPickup(member: Member) {
+        // 픽업 안내가 그룹 목적지 안내를 대신한다.
+        endDestination()
+        pickupRequester.request(member, permissionOf(member))
+    }
+
+    // ---- 그룹 목적지 공유 ----
+
+    /** 이 그룹에 지금 공유 중인 목적지(오래된 것은 빼고) */
+    fun destinationOf(group: FinderGroup): DestinationShare? = destinationShares[group.id]?.takeIf { it.isActive() }
+
+    /** 내가 지금 이 공유 목적지로 안내받고 있는지 */
+    fun isFollowing(share: DestinationShare) = activeDestination == (share.groupId to share.id)
+
+    /**
+     * 공유할 목적지 후보: 지금 안내 중인 목적지, 최근 목적지, 지금 내 차 위치.
+     * 내비 응답이 없을 수도 있어 1.5초 안에 받은 것만 쓴다.
+     */
+    fun loadSharePlaces(onLoaded: (List<SharePlace>) -> Unit) {
+        currentDestination = null
+        recentDestinations = null
+        pendingPlaces = onLoaded
+        if (naviConnected) {
+            naviHelper.getDestinationInfo()
+            naviHelper.getRecentDestinationInfo()
+        }
+        mainHandler.postDelayed({ deliverPlaces() }, PLACES_TIMEOUT_MS)
+    }
+
+    private fun deliverPlacesIfReady() {
+        if (currentDestination != null && recentDestinations != null) deliverPlaces()
+    }
+
+    private fun deliverPlaces() {
+        val callback = pendingPlaces ?: return
+        pendingPlaces = null
+        val places = mutableListOf<SharePlace>()
+        currentDestination?.takeIf { it.name.isNotBlank() && (it.latitude != 0.0 || it.longitude != 0.0) }?.let {
+            places += SharePlace(SharePlace.Kind.CURRENT, it.name, it.address.orEmpty(), it.latitude, it.longitude, it.poiId.orEmpty(), it.poiSubId.orEmpty())
+        }
+        recentDestinations.orEmpty()
+            .filter { it.name.isNotBlank() && places.none { p -> p.name == it.name } }
+            .take(MAX_RECENT_PLACES)
+            .forEach { places += SharePlace(SharePlace.Kind.RECENT, it.name, it.address.orEmpty(), it.latitude, it.longitude, it.poiId.orEmpty(), it.poiSubId.orEmpty()) }
+        myPosition?.let { (lat, lng) -> places += SharePlace(SharePlace.Kind.HERE, "${me.name}의 차 위치", "", lat, lng) }
+        callback(places)
+    }
+
+    /**
+     * 그룹에 목적지를 공유한다. 지금 안내 중이거나 최근 목적지를 고르면 나도 그 목적지로 함께 가고,
+     * 내 차 위치(여기로 모이기)를 고르면 나는 안내받지 않는다.
+     */
+    fun shareDestination(group: FinderGroup, place: SharePlace) {
+        endDestination()
+        val goTogether = place.kind != SharePlace.Kind.HERE && !isPickupBusy
+        val share = DestinationShare(
+            groupId = group.id, id = "", fromId = me.id,
+            name = place.name, address = place.address, latitude = place.latitude, longitude = place.longitude,
+            poiId = place.poiId, poiSubId = place.poiSubId, createdAt = System.currentTimeMillis(),
+            responses = if (goTogether) mapOf(me.id to true) else emptyMap(),
+        )
+        val id = repository.shareDestination(share)
+        if (goTogether) {
+            if (place.kind == SharePlace.Kind.RECENT) requestRoute(share)
+            activeDestination = group.id to id
+        }
+        showMessage("'${group.name}' 그룹에 '${place.name}'을(를) 목적지로 공유했어요.")
+    }
+
+    /** 받은 목적지로 내 차량 내비 길 안내를 시작한다. */
+    fun acceptDestination(share: DestinationShare): Boolean {
+        if (isPickupBusy) {
+            showMessage("픽업 중에는 목적지 안내를 시작할 수 없어요. 픽업을 끝낸 뒤 그룹에서 다시 시작해 주세요.")
+            return false
+        }
+        if (!naviConnected) {
+            showMessage("내비게이션에 연결되지 않았어요.")
+            return false
+        }
+        endDestination()
+        requestRoute(share)
+        activeDestination = share.groupId to share.id
+        repository.respondDestination(share.groupId, share.id, me.id, true)
+        DestinationNotifier.cancel(context, share)
+        showMessage("'${share.name}'(으)로 안내를 시작했어요.")
+        return true
+    }
+
+    fun declineDestination(share: DestinationShare) {
+        repository.respondDestination(share.groupId, share.id, me.id, false)
+        DestinationNotifier.cancel(context, share)
+    }
+
+    /** 공유한 사람이 공유를 끝낸다. */
+    fun clearDestination(group: FinderGroup) {
+        if (activeDestination?.first == group.id) endDestination()
+        repository.clearDestination(group.id)
+    }
+
+    private fun requestRoute(share: DestinationShare) {
+        naviHelper.requestRoute(
+            RouteInfo(
+                latitude = share.latitude,
+                longitude = share.longitude,
+                poiName = share.name,
+                poiId = share.poiId,
+                poiSubId = share.poiSubId.ifEmpty { "0" },
+                address = share.address,
+            )
+        )
+    }
+
+    private fun restoreActiveDestination() {
+        val saved = prefs.getString(KEY_ACTIVE_DESTINATION, null)?.split("|") ?: return
+        if (saved.size == 3 && saved[0] == me.id) activeDestination = saved[1] to saved[2]
+    }
+
+    /** 내가 참여한 그룹에 새로 공유된, 아직 답하지 않은 목적지를 한 번씩 알린다. */
+    private fun checkIncomingDestinations() {
+        for (share in destinationShares.values) {
+            val group = group(share.groupId) ?: continue
+            if (group.memberOf(me.id)?.status != InviteStatus.ACCEPTED) continue
+            if (!share.awaits(me.id) || !share.isPromptable()) continue
+            if (!promptedShares.add("${me.id}:${share.id}")) continue
+            val from = person(share.fromId).name
+            DestinationNotifier.notify(context, group, share, from)
+            onDestinationShared?.invoke(group, share)
+        }
+    }
+
+    private fun onDestinationProgress(distance: Int, duration: Int) {
+        val (groupId, shareId) = activeDestination ?: return
+        // 경로 재탐색 중에는 0 이 들어온다. 서버에는 10초에 한 번만 올린다.
+        val now = System.currentTimeMillis()
+        if (distance <= 0 || now - lastProgressAt < PROGRESS_INTERVAL_MS) return
+        lastProgressAt = now
+        repository.publishDestinationProgress(groupId, shareId, me.id, DestinationProgress(distance, duration, arrived = false, updatedAt = now))
+    }
+
+    private fun onDestinationReached() {
+        val (groupId, shareId) = activeDestination ?: return
+        repository.publishDestinationProgress(groupId, shareId, me.id, DestinationProgress(0, 0, arrived = true, updatedAt = System.currentTimeMillis()))
+        activeDestination = null
+        showMessage("공유받은 목적지에 도착했어요.")
+        notifyChanged()
+    }
+
+    /** 그룹 목적지 안내를 그만둔다(안내 취소, 픽업 시작, 운전자 변경). 그룹에서 내 남은 거리·시간을 지운다. */
+    private fun endDestination() {
+        val (groupId, shareId) = activeDestination ?: return
+        activeDestination = null
+        lastProgressAt = 0L
+        repository.publishDestinationProgress(groupId, shareId, me.id, null)
+        notifyChanged()
+    }
 
     fun stopPickup() {
         when (pickupState) {
@@ -401,13 +635,13 @@ class VehicleSession(context: Context) {
     fun shareVehicle(member: Member, until: Long) {
         repository.setVehicleShare(me.id, member.id, until)
         repository.setVehicleShare(member.id, me.id, until)
-        showMessage("${member.name}와(과) ${TIME.format(java.util.Date(until))}까지 차량 위치를 서로 공유해요.")
+        showMessage("${member.name.gwaWa} ${TIME.format(java.util.Date(until))}까지 차량 위치를 서로 공유해요.")
     }
 
     fun stopVehicleShare(member: Member) {
         repository.setVehicleShare(me.id, member.id, 0L)
         repository.setVehicleShare(member.id, me.id, 0L)
-        showMessage("${member.name}와(과)의 차량 위치 공유를 끝냈어요.")
+        showMessage("${member.name.gwaWa}의 차량 위치 공유를 끝냈어요.")
     }
 
     /** 서버에서 연결 정보를 처음 받아 올 때까지 기다린다. 앱 프로세스가 Gleo 호출로 막 시작된 경우에 쓴다. */
@@ -463,7 +697,11 @@ class VehicleSession(context: Context) {
     companion object {
         private const val TAG = "PleosFinder"
         private const val KEY_DRIVER = "driver"
+        private const val KEY_ACTIVE_DESTINATION = "activeDestination"
         private const val VEHICLE_PUBLISH_MS = 15_000L
+        private const val PLACES_TIMEOUT_MS = 1_500L
+        private const val MAX_RECENT_PLACES = 5
+        private const val PROGRESS_INTERVAL_MS = 10_000L
         const val TEMPORARY_STEP_MS = GroupMember.SHARE_STEP_MS
         private val TIME = java.text.SimpleDateFormat("a h:mm", java.util.Locale.KOREA)
     }
