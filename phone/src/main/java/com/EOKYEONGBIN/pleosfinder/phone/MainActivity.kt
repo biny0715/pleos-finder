@@ -28,6 +28,7 @@ import com.EOKYEONGBIN.pleosfinder.core.DestinationShare
 import com.EOKYEONGBIN.pleosfinder.core.euro
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
 import com.EOKYEONGBIN.pleosfinder.core.iGa
+import com.EOKYEONGBIN.pleosfinder.core.progressOf
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.Member
 import com.EOKYEONGBIN.pleosfinder.core.MemberLocation
@@ -277,6 +278,7 @@ class MainActivity : AppCompatActivity() {
         subscriptions += repository.observeDestinationShares {
             destinationShares = it
             promptDestinations()
+            render()
         }
         render()
     }
@@ -644,12 +646,21 @@ class MainActivity : AppCompatActivity() {
     /** 나, 나에게 위치를 보여 주는 사람, 운전 중인 차량. 픽업 중이면 오는 차와 나를 선으로 잇는다. */
     private fun renderMap() {
         val now = System.currentTimeMillis()
+        // 참여한 그룹에 공유된 목적지
+        val destinations = destinationShares.values.filter { share ->
+            share.isActive(now) && groups.any { it.id == share.groupId && it.memberOf(me.id)?.status == InviteStatus.ACCEPTED }
+        }
         val markers = mutableListOf<MapMarker>()
-        // 겹치면 뒤에 넣은 것이 위에 그려진다: 차량 → 사람 → 나
+        // 겹치면 뒤에 넣은 것이 위에 그려진다: 목적지 → 차량 → 사람 → 나
+        for (share in destinations) {
+            markers += MapMarker("dest:${share.groupId}", share.name, MapMarker.Kind.DESTINATION, share.latitude, share.longitude)
+        }
         val others = contactSubscriptions.keys
         for (id in others) {
             val (vehicleName, location) = visibleDrivingVehicle(id, now) ?: continue
-            markers += MapMarker("car:${location.vehicleId}", "${person(id).name} · $vehicleName", MapMarker.Kind.CAR, location.latitude, location.longitude)
+            // 그룹 목적지로 가는 차량은 남은 시간을 함께 보여 준다(예: "아빠 · 아이오닉5 · 12분").
+            val eta = destinations.progressOf(id, now)?.let { " · ${it.shortText(now)}" } ?: ""
+            markers += MapMarker("car:${location.vehicleId}", "${person(id).name} · $vehicleName$eta", MapMarker.Kind.CAR, location.latitude, location.longitude)
         }
         for (id in others) {
             if (!sharesWithMe(id, now)) continue
@@ -668,7 +679,16 @@ class MainActivity : AppCompatActivity() {
                 MapMarker("from", "", MapMarker.Kind.CAR, vehicleLat, vehicleLng),
                 MapMarker("to", "", MapMarker.Kind.ME, mine.latitude, mine.longitude),
             )
-        } else null
+        } else {
+            // 길 안내를 수락한 그룹 목적지가 있으면 나와 목적지를 잇는다.
+            val going = destinations.firstOrNull { it.responses[me.id] == true }
+            if (going != null && mine != null) {
+                listOf(
+                    MapMarker("from", "", MapMarker.Kind.ME, mine.latitude, mine.longitude),
+                    MapMarker("to", "", MapMarker.Kind.DESTINATION, going.latitude, going.longitude),
+                )
+            } else null
+        }
         // 나는 맨 위에 보이도록 마지막에 넣는다.
         myLocation?.let { markers += MapMarker(me.id, "나", MapMarker.Kind.ME, it.latitude, it.longitude) }
         map.show(markers, route)

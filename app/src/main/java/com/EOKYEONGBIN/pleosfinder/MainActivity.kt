@@ -27,6 +27,7 @@ import com.EOKYEONGBIN.pleosfinder.core.euro
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
 import com.EOKYEONGBIN.pleosfinder.core.gwaWa
 import com.EOKYEONGBIN.pleosfinder.core.iGa
+import com.EOKYEONGBIN.pleosfinder.core.progressOf
 import com.EOKYEONGBIN.pleosfinder.core.InviteStatus
 import com.EOKYEONGBIN.pleosfinder.core.Member
 import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
@@ -238,24 +239,38 @@ class MainActivity : AppCompatActivity() {
 
     /** 내 차, 나에게 위치를 보여 주는 사람과 차량. 픽업 중이면 내 차와 상대를 선으로 잇는다. */
     private fun renderMap() {
-        // 겹치면 뒤에 넣은 것이 위에 그려진다: 다른 차량 → 사람 → 내 차
+        val now = System.currentTimeMillis()
+        val destinations = session.activeDestinations()
+        // 그룹 목적지로 가는 차량은 남은 시간을 함께 보여 준다(예: "김민수 · GV70 · 12분").
+        fun eta(driverId: String) = destinations.progressOf(driverId, now)?.let { " · ${it.shortText(now)}" } ?: ""
+
+        // 겹치면 뒤에 넣은 것이 위에 그려진다: 목적지 → 다른 차량 → 사람 → 내 차
         val markers = mutableListOf<MapMarker>()
+        for (share in destinations) {
+            markers += MapMarker("dest:${share.groupId}", share.name, MapMarker.Kind.DESTINATION, share.latitude, share.longitude)
+        }
         for (vehicle in DemoDirectory.vehicles) {
             if (vehicle.id == session.vehicle.id) continue
             val location = session.visibleVehicleLocation(vehicle) ?: continue
-            markers += MapMarker("car:${vehicle.id}", "${session.person(location.driverId).name} · ${vehicle.name}", MapMarker.Kind.CAR, location.latitude, location.longitude)
+            markers += MapMarker(
+                "car:${vehicle.id}", "${session.person(location.driverId).name} · ${vehicle.name}${eta(location.driverId)}",
+                MapMarker.Kind.CAR, location.latitude, location.longitude,
+            )
         }
         for ((member, location) in session.visiblePeopleLocations()) {
             markers += MapMarker(member.id, member.name, MapMarker.Kind.PERSON, location.latitude, location.longitude)
         }
         // 내 차는 맨 위에 보이도록 마지막에 넣는다.
         val mine = session.myPosition
-        if (mine != null) markers += MapMarker("me", "내 차", MapMarker.Kind.MY_CAR, mine.first, mine.second)
-        val target = (session.pickupState as? PickupState.OnTheWay)?.targetLocation
+        if (mine != null) markers += MapMarker("me", "내 차${eta(session.me.id)}", MapMarker.Kind.MY_CAR, mine.first, mine.second)
+
+        // 픽업 중이면 기다리는 사람까지, 그룹 목적지로 가는 중이면 목적지까지 점선을 긋는다.
+        val target = (session.pickupState as? PickupState.OnTheWay)?.targetLocation?.let { it.latitude to it.longitude }
+            ?: session.followingDestination()?.let { it.latitude to it.longitude }
         val route = if (mine != null && target != null) {
             listOf(
                 MapMarker("from", "", MapMarker.Kind.MY_CAR, mine.first, mine.second),
-                MapMarker("to", "", MapMarker.Kind.PERSON, target.latitude, target.longitude),
+                MapMarker("to", "", MapMarker.Kind.DESTINATION, target.first, target.second),
             )
         } else null
         map.show(markers, route)

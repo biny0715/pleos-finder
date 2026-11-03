@@ -142,6 +142,7 @@ class VehicleSession(private val context: Context) {
             prefs.edit().putString(KEY_ACTIVE_DESTINATION, value?.let { (g, s) -> "${me.id}|$g|$s" }).apply()
         }
     private var lastProgressAt = 0L
+    private var routeRequestedAt = 0L
     private var pendingPlaces: ((List<SharePlace>) -> Unit)? = null
     private var currentDestination: DestinationInfo? = null
     private var recentDestinations: List<RecentDestinationInfo>? = null
@@ -171,7 +172,10 @@ class VehicleSession(private val context: Context) {
             mainHandler.post { onDestinationReached() }
         }
         override fun onRouteCancelled() {
-            mainHandler.post { endDestination() }
+            mainHandler.post {
+                // 새 경로를 요청하면 내비가 이전 경로를 '취소'로 알린다. 방금 요청한 직후의 취소는 사용자가 끈 것이 아니다.
+                if (System.currentTimeMillis() - routeRequestedAt > ROUTE_REPLACE_GRACE_MS) endDestination()
+            }
         }
     }
 
@@ -477,6 +481,14 @@ class VehicleSession(private val context: Context) {
     /** 이 그룹에 지금 공유 중인 목적지(오래된 것은 빼고) */
     fun destinationOf(group: FinderGroup): DestinationShare? = destinationShares[group.id]?.takeIf { it.isActive() }
 
+    /** 내가 참여한 그룹에 지금 공유 중인 목적지들(지도 표시용) */
+    fun activeDestinations(): List<DestinationShare> =
+        myGroups().filter { it.memberOf(me.id)?.status == InviteStatus.ACCEPTED }.mapNotNull(::destinationOf)
+
+    /** 지금 길 안내 중인 그룹 목적지 */
+    fun followingDestination(): DestinationShare? =
+        activeDestination?.let { (groupId, shareId) -> destinationShares[groupId]?.takeIf { it.id == shareId } }
+
     /** 내가 지금 이 공유 목적지로 안내받고 있는지 */
     fun isFollowing(share: DestinationShare) = activeDestination == (share.groupId to share.id)
 
@@ -566,6 +578,7 @@ class VehicleSession(private val context: Context) {
     }
 
     private fun requestRoute(share: DestinationShare) {
+        routeRequestedAt = System.currentTimeMillis()
         naviHelper.requestRoute(
             RouteInfo(
                 latitude = share.latitude,
@@ -717,6 +730,7 @@ class VehicleSession(private val context: Context) {
         private const val PLACES_TIMEOUT_MS = 1_500L
         private const val MAX_RECENT_PLACES = 5
         private const val PROGRESS_INTERVAL_MS = 10_000L
+        private const val ROUTE_REPLACE_GRACE_MS = 5_000L
         const val TEMPORARY_STEP_MS = GroupMember.SHARE_STEP_MS
         private val TIME = java.text.SimpleDateFormat("a h:mm", java.util.Locale.KOREA)
     }

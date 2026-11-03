@@ -192,7 +192,15 @@ data class DestinationProgress(
         return "목적지까지 $km · ${minutes}분 · $at 도착 예정"
     }
 
+    /** 지도 마커에 붙이는 짧은 표시: "12분" / "도착" */
+    fun shortText(now: Long = System.currentTimeMillis()): String =
+        if (arrived) "도착" else "${maxOf(1, ((arrivalAt - now) / 60_000L).toInt())}분"
+
     companion object {
         const val STALE_MS = 5 * 60_000L
     }
 }
+
+/** 공유 중인 목적지들에서 이 운전자의 가장 최근 남은 거리·시간(오래된 것은 뺀다) */
+fun Collection<DestinationShare>.progressOf(accountId: String, now: Long = System.currentTimeMillis()): DestinationProgress? =
+    mapNotNull { it.progress[accountId] }.filterNot { it.isStale(now) }.maxByOrNull { it.updatedAt }

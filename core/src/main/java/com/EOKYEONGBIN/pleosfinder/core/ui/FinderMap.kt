@@ -40,14 +40,15 @@ import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
-/** 지도에 찍을 사람 또는 차량. ME = 폰의 나, MY_CAR = 차량 앱의 내 차 */
+/** 지도에 찍을 사람·차량·목적지. ME = 폰의 나, MY_CAR = 차량 앱의 내 차, DESTINATION = 그룹에 공유된 목적지 */
 data class MapMarker(val id: String, val label: String, val kind: Kind, val latitude: Double, val longitude: Double) {
-    enum class Kind { ME, MY_CAR, PERSON, CAR }
+    enum class Kind { ME, MY_CAR, PERSON, CAR, DESTINATION }
 }
 
 /**
  * 차량·폰 앱 공용 지도. MapLibre + OpenFreeMap(OpenStreetMap 자료) 무료 지도에
- * 나에게 공유된 사람·차량을 표시하고, 픽업 중에는 차와 기다리는 사람을 잇는 선을 그린다.
+ * 나에게 공유된 사람·차량과 그룹 목적지를 표시하고, 픽업 중에는 차와 기다리는 사람을,
+ * 그룹 목적지로 가는 중에는 나와 목적지를 잇는 선을 그린다.
  * 기본 내비 경로는 외부 앱이 받을 수 없어 선은 직선으로 그린다(기획서 5장).
  * 마커 크기는 앱마다 다른 Pleos dimens(pleos_text_label: 차량 24sp / 폰 13sp)를 따른다.
  * 기본 화면은 내 위치를 가깝게 보여 주고, 지도 카드(finder_map_card)의 '내 위치 보기' 버튼으로 언제든 돌아온다.
@@ -109,7 +110,7 @@ class FinderMap(private val mapView: MapView, private val typeface: Typeface? = 
         }
     }
 
-    /** route = 픽업 중일 때 [차, 기다리는 사람] */
+    /** route = 픽업 중일 때 [차, 기다리는 사람], 그룹 목적지로 가는 중일 때 [나, 목적지] */
     fun show(markers: List<MapMarker>, route: List<MapMarker>?) {
         this.markers = markers
         this.route = route
@@ -179,10 +180,12 @@ class FinderMap(private val mapView: MapView, private val typeface: Typeface? = 
             MapMarker.Kind.ME, MapMarker.Kind.MY_CAR -> R.color.pleos_informative_positive
             MapMarker.Kind.PERSON -> R.color.pleos_informative_active
             MapMarker.Kind.CAR -> R.color.pleos_basic_600
+            MapMarker.Kind.DESTINATION -> R.color.pleos_informative_negative
         }
         @DrawableRes val icon = when (marker.kind) {
             MapMarker.Kind.MY_CAR, MapMarker.Kind.CAR -> R.drawable.pleos_ic_car
             MapMarker.Kind.ME, MapMarker.Kind.PERSON -> R.drawable.pleos_ic_person
+            MapMarker.Kind.DESTINATION -> R.drawable.pleos_ic_flag
         }
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = ContextCompat.getColor(context, R.color.pleos_text_primary)
