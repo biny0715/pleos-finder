@@ -70,11 +70,17 @@ data class SharePlace(
 
 class VehicleSession(private val context: Context) {
 
-    val vehicle: VehicleInfo = DemoDirectory.IONIQ5
-    val drivers: List<Member> = vehicle.driverIds.map(DemoDirectory::member)
-
     private val prefs = context.getSharedPreferences("session", Context.MODE_PRIVATE)
-    var me: Member = DemoDirectory.member(prefs.getString(KEY_DRIVER, vehicle.ownerId)!!)
+
+    /**
+     * 이 차량. 기획상 차량에 로그인한 Pleos 계정으로 정해지고, 출품본은 프로필 메뉴에서 바꾼다
+     * (에뮬레이터 두 대를 각각 다른 차량으로 시연).
+     */
+    var vehicle: VehicleInfo = prefs.getString(KEY_VEHICLE, null)?.let(DemoDirectory::vehicle) ?: DemoDirectory.IONIQ5
+        private set
+    val drivers: List<Member> get() = vehicle.driverIds.map(DemoDirectory::member)
+
+    var me: Member = DemoDirectory.member(prefs.getString(KEY_DRIVER, null)?.takeIf { it in vehicle.driverIds } ?: vehicle.ownerId)
         private set
 
     private val repository: FinderRepository = FirebaseFinderRepository()
@@ -215,8 +221,16 @@ class VehicleSession(private val context: Context) {
     // ---- 운전자(계정) ----
 
     /** 이 차량에 로그인한 운전자를 바꾼다. 진행 중인 픽업은 끝내고 새 운전자 기준으로 다시 구독한다. */
-    fun switchDriver(driver: Member) {
-        if (driver == me) return
+    /** 이 에뮬레이터가 시연하는 차량을 바꾼다. 운전자는 그 차량의 주인으로 바뀐다. */
+    fun switchVehicle(next: VehicleInfo) {
+        if (next == vehicle) return
+        vehicle = next
+        prefs.edit().putString(KEY_VEHICLE, next.id).apply()
+        switchDriver(DemoDirectory.member(next.ownerId), force = true)
+    }
+
+    fun switchDriver(driver: Member, force: Boolean = false) {
+        if (driver == me && !force) return
         pickupRequester.cancel()
         pickupController.stop()
         endDestination()
@@ -238,7 +252,7 @@ class VehicleSession(private val context: Context) {
         if (naviConnected) naviHelper.addListener(pickupController)
         accountSubscriptions += subscribeAccount()
         myPosition?.let { (lat, lng) -> publishVehicle(lat, lng) }
-        showMessage("${driver.name.euro} 운전자를 바꿨어요. ${driver.name}의 공유 설정이 적용돼요.")
+        showMessage("${driver.name} · ${vehicle.name.euro} 시연해요. ${driver.name}의 공유 설정이 적용돼요.")
         checkIncomingDestinations()
         notifyChanged()
     }
@@ -697,6 +711,7 @@ class VehicleSession(private val context: Context) {
     companion object {
         private const val TAG = "PleosFinder"
         private const val KEY_DRIVER = "driver"
+        private const val KEY_VEHICLE = "vehicle"
         private const val KEY_ACTIVE_DESTINATION = "activeDestination"
         private const val VEHICLE_PUBLISH_MS = 15_000L
         private const val PLACES_TIMEOUT_MS = 1_500L

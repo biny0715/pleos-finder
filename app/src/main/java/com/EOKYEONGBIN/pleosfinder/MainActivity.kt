@@ -644,20 +644,32 @@ class MainActivity : AppCompatActivity() {
 
     private fun showProfileMenu() {
         val drivers = session.drivers
-        val items = drivers.map { if (it == session.me) "${it.name} (지금 운전 중)" else "${it.name.euro} 전환" } + "시연 데이터 초기화"
+        val items = drivers.map { if (it == session.me) "${it.name} (지금 운전 중)" else "${it.name.euro} 전환" } +
+            "다른 차량으로 시연" + "시연 데이터 초기화"
         AlertDialog.Builder(this)
             .setTitle("${session.vehicle.name} 운전자")
             .setItems(items.toTypedArray()) { _, which ->
-                if (which < drivers.size) {
-                    selectedId = null
-                    openGroupId = null
-                    session.switchDriver(drivers[which])
-                } else {
-                    selectedId = null
-                    openGroupId = null
-                    session.resetDemo()
+                selectedId = null
+                openGroupId = null
+                when (which) {
+                    in drivers.indices -> session.switchDriver(drivers[which])
+                    drivers.size -> showVehiclePicker()
+                    else -> session.resetDemo()
                 }
             }
+            .show()
+    }
+
+    /** 에뮬레이터 두 대로 차량끼리 시연할 때 이 에뮬레이터가 어느 차량인지 고른다. */
+    private fun showVehiclePicker() {
+        val vehicles = DemoDirectory.vehicles
+        val labels = vehicles.map { v ->
+            val owner = DemoDirectory.member(v.ownerId).name
+            if (v == session.vehicle) "${v.name} · $owner (지금 이 차량)" else "${v.name} · $owner"
+        }
+        AlertDialog.Builder(this)
+            .setTitle("시연할 차량")
+            .setItems(labels.toTypedArray()) { _, which -> session.switchVehicle(vehicles[which]) }
             .show()
     }
 
