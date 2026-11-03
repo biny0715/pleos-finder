@@ -206,7 +206,8 @@ class LocationShareService : Service(), LocationListener {
         val me = FinderServices.me
         for (share in destinationShares) {
             val group = groups.firstOrNull { it.id == share.groupId } ?: continue
-            if (!share.awaits(me.id) || !share.isPromptable() || !notifiedShares.add(share.id)) continue
+            // 앱 화면이 열려 있으면 화면 팝업으로 묻고 알림은 띄우지 않는다.
+            if (appVisible || !share.awaits(me.id) || !share.isPromptable() || !notifiedShares.add(share.id)) continue
             val from = DemoDirectory.memberFor(me.id, share.fromId).name
             notificationManager.notify(
                 Directions.notificationId(share),
@@ -284,6 +285,9 @@ class LocationShareService : Service(), LocationListener {
 
         var isRunning = false
             private set
+
+        /** 폰 앱 메인 화면이 보이는 중인지(목적지 공유 알림과 팝업이 겹치지 않게) */
+        var appVisible = false
         var isSharing = false
             private set
         /** 상대(viewerId)별 내 허용 방식 */

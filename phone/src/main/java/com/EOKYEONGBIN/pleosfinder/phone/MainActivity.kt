@@ -37,6 +37,7 @@ import com.EOKYEONGBIN.pleosfinder.core.Relation
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.ShareRequest
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
+import com.EOKYEONGBIN.pleosfinder.core.ui.DestinationPromptDialog
 import com.EOKYEONGBIN.pleosfinder.core.ui.Favorites
 import com.EOKYEONGBIN.pleosfinder.core.ui.FinderMap
 import com.EOKYEONGBIN.pleosfinder.core.ui.MapMarker
@@ -241,6 +242,7 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         mapView.onStart()
         LocationShareService.onStateChanged = ::renderShare
+        LocationShareService.appVisible = true
         subscriptions += repository.observeConnections(me.id) {
             connections = it
             syncContactSubscriptions()
@@ -281,6 +283,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         LocationShareService.onStateChanged = null
+        LocationShareService.appVisible = false
         subscriptions.forEach { it.cancel() }
         subscriptions.clear()
         contactSubscriptions.values.flatten().forEach { it.cancel() }
@@ -559,14 +562,12 @@ class MainActivity : AppCompatActivity() {
         for (share in destinationShares.values) {
             val group = groups.firstOrNull { it.id == share.groupId && it.memberOf(me.id)?.status == InviteStatus.ACCEPTED } ?: continue
             if (!share.awaits(me.id) || !share.isPromptable() || !promptedShares.add(share.id)) continue
-            val from = person(share.fromId).name
-            val place = listOfNotNull(share.name, share.address.ifBlank { null }).joinToString("\n")
-            AlertDialog.Builder(this)
-                .setTitle("목적지 공유")
-                .setMessage("${from.iGa} '${group.name}' 그룹에 목적지를 공유했어요.\n\n$place\n\n이 목적지로 길 안내를 시작할까요?")
-                .setPositiveButton("길 안내") { _, _ -> respondDestination(share, accept = true) }
-                .setNegativeButton("거절") { _, _ -> respondDestination(share, accept = false) }
-                .show()
+            NotificationManagerCompat.from(this).cancel(Directions.notificationId(share))
+            DestinationPromptDialog.show(
+                this, fromName = person(share.fromId).name, groupName = group.name, share = share,
+                acceptLabel = "길 안내", question = "이 목적지로 길 안내를 시작할까요?",
+                onAccept = { respondDestination(share, accept = true) }, onDecline = { respondDestination(share, accept = false) },
+            )
         }
     }
 

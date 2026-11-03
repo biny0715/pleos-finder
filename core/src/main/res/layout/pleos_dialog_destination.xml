@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 그룹 목적지 공유를 받았을 때의 대화상자 본문. 크기는 앱마다 다른 Pleos dimens(차량 / 폰)를 따른다. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/pleos_card_padding"
+    android:paddingTop="8dp"
+    android:paddingEnd="@dimen/pleos_card_padding">
+
+    <TextView
+        android:id="@+id/destinationFrom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.Pleos.Body" />
+
+    <!-- 목적지 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/pleos_gap"
+        android:background="@drawable/pleos_bg_button_basic"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="@dimen/pleos_gap">
+
+        <ImageView
+            android:layout_width="@dimen/pleos_button_height_medium"
+            android:layout_height="@dimen/pleos_button_height_medium"
+            android:background="@drawable/pleos_bg_avatar"
+            android:importantForAccessibility="no"
+            android:padding="@dimen/pleos_icon_button_padding"
+            android:scaleType="fitCenter"
+            android:src="@drawable/pleos_ic_my_location" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/pleos_gap"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/destinationName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+
+            <TextView
+                android:id="@+id/destinationAddress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/destinationQuestion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/pleos_gap"
+        android:textAppearance="@style/TextAppearance.Pleos.Body" />
+</LinearLayout>

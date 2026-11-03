@@ -590,9 +590,9 @@ class VehicleSession(private val context: Context) {
             if (group.memberOf(me.id)?.status != InviteStatus.ACCEPTED) continue
             if (!share.awaits(me.id) || !share.isPromptable()) continue
             if (!promptedShares.add("${me.id}:${share.id}")) continue
-            val from = person(share.fromId).name
-            DestinationNotifier.notify(context, group, share, from)
-            onDestinationShared?.invoke(group, share)
+            // Finder 화면이 열려 있으면 화면 팝업만, 내비 등 다른 화면이면 알림으로 묻는다(둘이 겹치지 않게).
+            val prompt = onDestinationShared
+            if (prompt != null) prompt(group, share) else DestinationNotifier.notify(context, group, share, person(share.fromId).name)
         }
     }
 

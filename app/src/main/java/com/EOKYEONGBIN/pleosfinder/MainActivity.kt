@@ -32,6 +32,7 @@ import com.EOKYEONGBIN.pleosfinder.core.Member
 import com.EOKYEONGBIN.pleosfinder.core.R as CoreR
 import com.EOKYEONGBIN.pleosfinder.core.Relation
 import com.EOKYEONGBIN.pleosfinder.core.SharePermission
+import com.EOKYEONGBIN.pleosfinder.core.ui.DestinationPromptDialog
 import com.EOKYEONGBIN.pleosfinder.core.ui.Favorites
 import com.EOKYEONGBIN.pleosfinder.core.ui.FinderMap
 import com.EOKYEONGBIN.pleosfinder.core.ui.MapMarker
@@ -302,14 +303,11 @@ class MainActivity : AppCompatActivity() {
     /** 같은 그룹 구성원이 공유한 목적지로 갈지 묻는다. */
     private fun showDestinationPrompt(group: FinderGroup, share: DestinationShare) {
         if (isFinishing) return
-        val from = session.person(share.fromId).name
-        val place = listOfNotNull(share.name, share.address.ifBlank { null }).joinToString("\n")
-        AlertDialog.Builder(this)
-            .setTitle("목적지 공유")
-            .setMessage("${from.iGa} '${group.name}' 그룹에 목적지를 공유했어요.\n\n$place\n\n이 목적지로 안내를 시작할까요?")
-            .setPositiveButton(R.string.action_start_navigation) { _, _ -> session.acceptDestination(share) }
-            .setNegativeButton(R.string.action_decline) { _, _ -> session.declineDestination(share) }
-            .show()
+        DestinationPromptDialog.show(
+            this, fromName = session.person(share.fromId).name, groupName = group.name, share = share,
+            acceptLabel = getString(R.string.action_start_navigation), question = "이 목적지로 안내를 시작할까요?",
+            onAccept = { session.acceptDestination(share) }, onDecline = { session.declineDestination(share) },
+        )
     }
 
     private fun openGroup(): FinderGroup? = openGroupId?.let { id -> session.myGroups().firstOrNull { it.id == id } }
