@@ -68,6 +68,17 @@
         <item name="android:textColor">@color/pleos_button_text_basic</item>
     </style>
 
+    <!-- 대화상자 버튼: 주요·보조 버튼을 같은 높이(Medium)로 나란히 두고 사이를 띄운다. -->
+    <style name="Widget.Pleos.Button.Filled.Dialog">
+        <item name="android:minHeight">@dimen/pleos_button_height_medium</item>
+        <item name="android:minWidth">@dimen/pleos_dialog_button_min_width</item>
+        <item name="android:layout_marginStart">@dimen/pleos_dialog_button_gap</item>
+    </style>
+
+    <style name="Widget.Pleos.Button.Basic.Dialog">
+        <item name="android:minWidth">@dimen/pleos_dialog_button_min_width</item>
+    </style>
+
     <!-- Segmented menu 항목 (RadioButton) -->
     <style name="Widget.Pleos.Segment" parent="">
         <item name="android:layout_width">0dp</item>

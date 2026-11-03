@@ -30,8 +30,8 @@
         <item name="android:windowMinWidthMinor">50%</item>
         <item name="dialogCornerRadius">48dp</item>
         <item name="android:colorBackground">@color/pleos_surface_basic</item>
-        <item name="buttonBarPositiveButtonStyle">@style/Widget.Pleos.Button.Filled</item>
-        <item name="buttonBarNegativeButtonStyle">@style/Widget.Pleos.Button.Basic</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.Pleos.Button.Filled.Dialog</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.Pleos.Button.Basic.Dialog</item>
     </style>
 
     <style name="Pleos.DialogTitle" parent="">
