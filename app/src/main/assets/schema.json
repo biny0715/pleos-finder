@@ -1,8 +1,8 @@
 {
   "packageName": "com.EOKYEONGBIN.pleosfinder",
-  "appDescription": "A family and friends location sharing app that guides the car to people for pickups and shares car locations with people or groups for a limited time.",
+  "appDescription": "A family and friends location sharing app that guides the car to people for pickups, shares car locations with people or groups for a limited time, and shares a destination with a group so everyone's navigation goes to the same place.",
   "invokeWord": "파인더",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "actionCalls": [
     {
       "type": "function",
@@ -14,7 +14,11 @@
           "properties": {
             "action": {
               "type": "string",
-              "enum": ["start", "stop", "status"],
+              "enum": [
+                "start",
+                "stop",
+                "status"
+              ],
               "description": "Whether to start a pickup, stop the current pickup, or report the person's location and distance."
             },
             "memberName": {
@@ -22,7 +26,9 @@
               "description": "Name or relationship of the person, as the driver calls them in the family or friend list."
             }
           },
-          "required": ["action"]
+          "required": [
+            "action"
+          ]
         },
         "component": "service"
       }
@@ -31,24 +37,35 @@
       "type": "function",
       "function": {
         "name": "SHARE_LOCATION",
-        "description": "Share the car's location with a person or a group for a limited time.",
+        "description": "Share the car's location with a person or a group for a limited time, or share the current navigation destination (or the car's current position as a meeting point) with a group so members can navigate there.",
         "parameters": {
           "type": "object",
           "properties": {
             "targetName": {
               "type": "string",
-              "description": "Name of the person or group to share the car's location with."
+              "description": "Name of the person or group to share with. Destinations can be shared only with a group."
+            },
+            "shareType": {
+              "type": "string",
+              "enum": [
+                "location",
+                "current_destination",
+                "car_position"
+              ],
+              "description": "What to share: 'location' for the car's live location (default), 'current_destination' for the destination currently set in the navigation, 'car_position' to share where the car is now as a meeting point."
             },
             "durationMinutes": {
               "type": "number",
-              "description": "How long to share, in minutes, up to 1440."
+              "description": "How long to share the car's location, in minutes, up to 1440. Not used for destinations."
             },
             "untilEndOfToday": {
               "type": "boolean",
               "description": "True to share only until the end of today."
             }
           },
-          "required": ["targetName"]
+          "required": [
+            "targetName"
+          ]
         },
         "component": "service"
       }
@@ -67,7 +84,12 @@
             },
             "category": {
               "type": "string",
-              "enum": ["FAMILY", "FRIENDS", "GROUPS", "ALL"],
+              "enum": [
+                "FAMILY",
+                "FRIENDS",
+                "GROUPS",
+                "ALL"
+              ],
               "description": "Which list to stop sharing with when no single person or group is named."
             }
           },

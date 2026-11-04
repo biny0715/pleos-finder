@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.EOKYEONGBIN.pleosfinder.PleosFinderApp
+import com.EOKYEONGBIN.pleosfinder.SharePlace
 import com.EOKYEONGBIN.pleosfinder.VehicleSession
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
@@ -25,7 +26,8 @@ import java.util.Locale
 /**
  * Gleo AI 음성 명령을 받는다(assets/schema.json 의 component = "service"). Gleo 함수는 최대 3개라 다음처럼 묶었다.
  * - PICKUP(action = start | stop | status, memberName): "와이프 픽업 가줘", "픽업 그만", "아들 어디쯤이야?"
- * - SHARE_LOCATION(targetName, durationMinutes, untilEndOfToday): "박지훈한테 1시간만 위치 공유해줘", "주말 캠핑 그룹에 2시간만 공유해줘"
+ * - SHARE_LOCATION(targetName, shareType, durationMinutes, untilEndOfToday): "박지훈한테 1시간만 위치 공유해줘", "주말 캠핑 그룹에 2시간만 공유해줘",
+ *   "주말 캠핑 그룹에 지금 목적지 공유해줘"(shareType = current_destination), "주말 캠핑 그룹에 여기로 모이자고 해줘"(car_position)
  * - STOP_LOCATION_SHARING(targetName, category): "친구 목록 중에 위치 공유된 것 모두 꺼줘"
  * Gleo 는 sendBroadcast 로 action = "패키지 이름.함수 이름", ACTION_PARAM = 파라미터 JSON 을 보낸다.
  */
@@ -135,6 +137,11 @@ class GleoActionReceiver : BroadcastReceiver() {
     /** 사람이면 차량끼리 위치 공유, 그룹이면 그룹에 일시적 공유. 시간은 30분 단위로 올려 최대 24시간. */
     private fun shareLocation(reply: Reply, session: VehicleSession, params: JSONObject) {
         val target = params.optString(PARAM_TARGET_NAME).trim()
+        val shareType = params.optString(PARAM_SHARE_TYPE, SHARE_TYPE_LOCATION).lowercase()
+        if (shareType == SHARE_TYPE_DESTINATION || shareType == SHARE_TYPE_CAR_POSITION) {
+            shareDestination(reply, session, target, here = shareType == SHARE_TYPE_CAR_POSITION)
+            return
+        }
         if (target.isEmpty()) {
             reply(Status.ASKING, "Who or which group should I share my car's location with?")
             return
@@ -167,6 +174,39 @@ class GleoActionReceiver : BroadcastReceiver() {
         val member = resolvePerson(reply, people, target, "Who should I share my car's location with?") ?: return
         session.shareVehicle(member, until)
         reply(Status.SUCCESS, "Sharing car locations with ${member.name} until $untilText.")
+    }
+
+    /**
+     * 그룹 목적지 공유: 지금 내비가 안내 중인 목적지(here = false) 또는 지금 내 차 위치(here = true, 여기로 모이기).
+     * 목적지는 그룹에만 공유한다. 구성원 차량에는 '목적지 공유' 팝업·알림이 뜬다.
+     */
+    private fun shareDestination(reply: Reply, session: VehicleSession, target: String, here: Boolean) {
+        if (target.isEmpty()) {
+            reply(Status.ASKING, "Which group should I share the destination with?")
+            return
+        }
+        val group = findGroup(session, target)
+        if (group == null) {
+            reply(Status.FAIL, "Destinations can only be shared with a group. I couldn't find a group named '$target'.")
+            return
+        }
+        if (group.memberOf(session.me.id)?.status != InviteStatus.ACCEPTED) {
+            reply(Status.FAIL, "You have not joined the '${group.name}' group yet.")
+            return
+        }
+        session.loadSharePlaces { places ->
+            val kind = if (here) SharePlace.Kind.HERE else SharePlace.Kind.CURRENT
+            val place = places.firstOrNull { it.kind == kind }
+            when {
+                place != null -> {
+                    session.shareDestination(group, place)
+                    val what = if (here) "your car's current location as the meeting point" else "'${place.name}'"
+                    reply(Status.SUCCESS, "Shared $what with the '${group.name}' group. Members can start navigation from the pop-up.")
+                }
+                here -> reply(Status.FAIL, "I can't get your car's location right now.")
+                else -> reply(Status.FAIL, "There is no destination set in the navigation. Set a destination first, or ask me to share where your car is now.")
+            }
+        }
     }
 
     // ---- STOP_LOCATION_SHARING ----
@@ -279,6 +319,10 @@ class GleoActionReceiver : BroadcastReceiver() {
         private const val PARAM_TARGET_NAME = "targetName"
         private const val PARAM_DURATION_MINUTES = "durationMinutes"
         private const val PARAM_UNTIL_END_OF_TODAY = "untilEndOfToday"
+        private const val PARAM_SHARE_TYPE = "shareType"
+        private const val SHARE_TYPE_LOCATION = "location"
+        private const val SHARE_TYPE_DESTINATION = "current_destination"
+        private const val SHARE_TYPE_CAR_POSITION = "car_position"
         private const val PARAM_CATEGORY = "category"
         private const val STEP_MINUTES = 30
         private const val MAX_MINUTES = 24 * 60

@@ -18,5 +18,8 @@ val String.iGa: String get() = this + if (hasFinalConsonant()) "이" else "가"
 /** 과/와 */
 val String.gwaWa: String get() = this + if (hasFinalConsonant()) "과" else "와"
 
+/** 을/를 */
+val String.eulReul: String get() = this + if (hasFinalConsonant()) "을" else "를"
+
 /** 으로/로 */
 val String.euro: String get() = this + if (hasFinalConsonant() && finalConsonant() != 8) "으로" else "로"

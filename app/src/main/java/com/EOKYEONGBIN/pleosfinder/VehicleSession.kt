@@ -17,6 +17,7 @@ import com.EOKYEONGBIN.pleosfinder.core.Connection
 import com.EOKYEONGBIN.pleosfinder.core.DemoDirectory
 import com.EOKYEONGBIN.pleosfinder.core.DestinationProgress
 import com.EOKYEONGBIN.pleosfinder.core.DestinationShare
+import com.EOKYEONGBIN.pleosfinder.core.eulReul
 import com.EOKYEONGBIN.pleosfinder.core.euro
 import com.EOKYEONGBIN.pleosfinder.core.FinderGroup
 import com.EOKYEONGBIN.pleosfinder.core.FinderRepository
@@ -146,6 +147,9 @@ class VehicleSession(private val context: Context) {
             prefs.edit().putString(KEY_ACTIVE_DESTINATION, value?.let { (g, s) -> "${me.id}|$g|$s" }).apply()
         }
     private var lastProgressAt = 0L
+
+    /** 지금 목적지를 따라가기 시작한 시각. 이보다 오래된 공유가 잠깐 보이는 것은 무시한다. */
+    private var followingSince = 0L
     private var routeRequestedAt = 0L
     private var pendingPlaces: ((List<SharePlace>) -> Unit)? = null
     private var currentDestination: DestinationInfo? = null
@@ -217,8 +221,11 @@ class VehicleSession(private val context: Context) {
         repository.observeDestinationShares {
             destinationShares = it
             // 따라가던 공유가 끝났거나 바뀌었으면 그만둔다.
+            // 따라가던 공유가 끝났거나 더 새 공유로 바뀌었으면 그만둔다.
+            // 공유를 바꾸는 순간에는 바뀌기 전 데이터가 먼저 올 수 있어, 따라가기 시작한 뒤에 생긴 공유일 때만 본다.
             activeDestination?.let { (groupId, shareId) ->
-                if (it[groupId]?.id != shareId) endDestination()
+                val current = it[groupId]
+                if (current == null || (current.id != shareId && current.createdAt > followingSince)) endDestination()
             }
             checkIncomingDestinations()
             notifyChanged()
@@ -546,9 +553,10 @@ class VehicleSession(private val context: Context) {
         val id = repository.shareDestination(share)
         if (goTogether) {
             if (place.kind == SharePlace.Kind.RECENT) requestRoute(share)
+            followingSince = System.currentTimeMillis()
             activeDestination = group.id to id
         }
-        showMessage("'${group.name}' 그룹에 '${place.name}'을(를) 목적지로 공유했어요.")
+        showMessage("'${group.name}' 그룹에 ${place.name.eulReul} 목적지로 공유했어요.")
     }
 
     /** 받은 목적지로 내 차량 내비 길 안내를 시작한다. */
@@ -563,6 +571,7 @@ class VehicleSession(private val context: Context) {
         }
         endDestination()
         requestRoute(share)
+        followingSince = System.currentTimeMillis()
         activeDestination = share.groupId to share.id
         repository.respondDestination(share.groupId, share.id, me.id, true)
         DestinationNotifier.cancel(context, share)
