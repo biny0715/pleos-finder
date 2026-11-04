@@ -22,6 +22,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PleosFinder">
 
+        <!-- 운전 중 화면 제한(CarUxRestrictions). 차량에는 기본으로 있다. -->
+        <uses-library
+            android:name="android.car"
+            android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">

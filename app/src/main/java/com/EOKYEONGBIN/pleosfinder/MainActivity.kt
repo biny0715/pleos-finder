@@ -128,9 +128,9 @@ class MainActivity : AppCompatActivity() {
         groupShareDetail = findViewById(R.id.groupShareDetail)
         groupExtendButton = findViewById(R.id.groupExtendButton)
 
-        findViewById<View>(R.id.profileChip).setOnClickListener { showProfileMenu() }
+        findViewById<View>(R.id.profileChip).setOnClickListener { whenParked(::showProfileMenu) }
         pickupActionButton.setOnClickListener { session.stopPickup() }
-        findViewById<Button>(R.id.groupRenameButton).setOnClickListener { openGroup()?.let(::showRenameGroup) }
+        findViewById<Button>(R.id.groupRenameButton).setOnClickListener { whenParked { openGroup()?.let(::showRenameGroup) } }
         findViewById<Button>(R.id.groupCloseButton).setOnClickListener {
             openGroupId = null
             render()
@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity() {
             openGroup()?.let { session.respondGroupInvite(it, accept = false) }
             openGroupId = null
         }
-        findViewById<Button>(R.id.groupInviteButton).setOnClickListener { openGroup()?.let(::showGroupInvite) }
+        findViewById<Button>(R.id.groupInviteButton).setOnClickListener { whenParked { openGroup()?.let(::showGroupInvite) } }
         findViewById<Button>(R.id.groupDestinationShareButton).setOnClickListener { openGroup()?.let(::showShareDestination) }
         findViewById<Button>(R.id.groupDestinationGoButton).setOnClickListener {
             openGroup()?.let(session::destinationOf)?.let(session::acceptDestination)
@@ -207,7 +207,22 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    /**
+     * 정차 중에만 하는 작업(기획서 7장: 초대·그룹 만들기·이름 변경·운전자 전환).
+     * 주행 중에는 실행하지 않고 안내만 한다.
+     */
+    private fun whenParked(action: () -> Unit) {
+        if (session.isDriving) toast.show("주행 중에는 사용할 수 없어요. 정차한 뒤 이용해 주세요.") else action()
+    }
+
+    /** 주행 중에는 정차 중에만 하는 버튼을 흐리게 보여 준다. */
+    private fun parkedOnlyAlpha() = if (session.isDriving) 0.4f else 1f
+
     private fun render() {
+        val parkedOnly = parkedOnlyAlpha()
+        findViewById<View>(R.id.profileChip).alpha = parkedOnly
+        findViewById<View>(R.id.groupRenameButton).alpha = parkedOnly
+        findViewById<View>(R.id.groupInviteButton).alpha = parkedOnly
         profileAvatar.text = session.me.name.take(1)
         profileName.text = "${session.me.name} · ${session.vehicle.name} 운전 중"
         renderList()
@@ -357,7 +372,8 @@ class MainActivity : AppCompatActivity() {
         }
         header.findViewById<TextView>(R.id.sectionAction).apply {
             text = action
-            setOnClickListener { onAction() }
+            alpha = parkedOnlyAlpha()
+            setOnClickListener { whenParked(onAction) }
         }
         listContainer.addView(header)
         return expanded

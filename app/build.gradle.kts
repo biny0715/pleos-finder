@@ -12,6 +12,8 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.EOKYEONGBIN.pleosfinder"
+    // 운전 중 화면 제한(CarUxRestrictions)
+    useLibrary("android.car")
     compileSdk {
         version = release(37)
     }

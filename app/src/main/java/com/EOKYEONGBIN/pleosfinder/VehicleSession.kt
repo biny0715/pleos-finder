@@ -87,6 +87,10 @@ class VehicleSession(private val context: Context) {
     private val naviHelper = NaviHelper(context.applicationContext)
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /** 주행 중이면 입력이 필요한 작업(초대·그룹 만들기·이름 변경)과 운전자 전환을 막는다. */
+    private val drivingRestriction = DrivingRestriction(context) { mainHandler.post { notifyChanged() } }
+    val isDriving: Boolean get() = drivingRestriction.isDriving
+
     private lateinit var pickupController: PickupController
     private lateinit var pickupRequester: PickupRequester
 
