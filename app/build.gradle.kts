@@ -25,6 +25,11 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        // Pleos 차량·에뮬레이터와 요즘 폰은 모두 arm64 라서 지도(MapLibre) 네이티브 라이브러리는 arm64 만 넣는다(APK 약 60MB → 25MB).
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
