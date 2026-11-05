@@ -39,6 +39,8 @@ import com.EOKYEONGBIN.pleosfinder.core.ui.FinderMap
 import com.EOKYEONGBIN.pleosfinder.core.ui.MapMarker
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosTextInputDialog
 import com.EOKYEONGBIN.pleosfinder.core.ui.PleosToast
+import com.EOKYEONGBIN.pleosfinder.pickup.MultiPickupView
+import com.EOKYEONGBIN.pleosfinder.pickup.MultiStop
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupState
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -130,6 +132,8 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.profileChip).setOnClickListener { whenParked(::showProfileMenu) }
         pickupActionButton.setOnClickListener { session.stopPickup() }
+        findViewById<Button>(R.id.pickupConfirmButton).setOnClickListener { session.confirmNextPickedUp() }
+        findViewById<Button>(R.id.multiPickupButton).setOnClickListener { whenParked(::showMultiPickup) }
         findViewById<Button>(R.id.groupRenameButton).setOnClickListener { whenParked { openGroup()?.let(::showRenameGroup) } }
         findViewById<Button>(R.id.groupCloseButton).setOnClickListener {
             openGroupId = null
@@ -221,6 +225,7 @@ class MainActivity : AppCompatActivity() {
     private fun render() {
         val parkedOnly = parkedOnlyAlpha()
         findViewById<View>(R.id.profileChip).alpha = parkedOnly
+        findViewById<View>(R.id.multiPickupButton).alpha = parkedOnly
         findViewById<View>(R.id.groupRenameButton).alpha = parkedOnly
         findViewById<View>(R.id.groupInviteButton).alpha = parkedOnly
         profileAvatar.text = session.me.name.take(1)
@@ -280,7 +285,10 @@ class MainActivity : AppCompatActivity() {
         if (mine != null) markers += MapMarker("me", "내 차${eta(session.me.id)}", MapMarker.Kind.MY_CAR, mine.first, mine.second)
 
         // 픽업 중이면 기다리는 사람까지, 그룹 목적지로 가는 중이면 목적지까지 점선을 긋는다.
+        val multi = (session.pickupState as? PickupState.Multi)?.view
         val target = (session.pickupState as? PickupState.OnTheWay)?.targetLocation?.let { it.latitude to it.longitude }
+            ?: multi?.next?.location?.let { it.latitude to it.longitude }
+            ?: multi?.destination?.takeIf { multi.headingToDestination }?.let { it.latitude to it.longitude }
             ?: session.followingDestination()?.let { it.latitude to it.longitude }
         val route = if (mine != null && target != null) {
             listOf(
@@ -594,11 +602,14 @@ class MainActivity : AppCompatActivity() {
     private fun renderPickup() {
         val state = session.pickupState
         // 픽업 줄은 픽업을 기다리거나 가는 중일 때만 보인다. 완료는 토스트로 알린다.
-        val visible = state is PickupState.WaitingForAcceptance || state is PickupState.OnTheWay
+        val visible = state is PickupState.WaitingForAcceptance || state is PickupState.OnTheWay || state is PickupState.Multi
         pickupStrip.visibility = if (visible) View.VISIBLE else View.GONE
         pickupProgress.visibility = if (state is PickupState.WaitingForAcceptance) View.VISIBLE else View.GONE
-        pickupMetrics.visibility = if (state is PickupState.OnTheWay) View.VISIBLE else View.GONE
+        pickupMetrics.visibility = if (state is PickupState.OnTheWay || state is PickupState.Multi) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.pickupConfirmButton).visibility =
+            if (state is PickupState.Multi && state.view.next != null) View.VISIBLE else View.GONE
         when (state) {
+            is PickupState.Multi -> renderMultiPickup(state.view)
             is PickupState.WaitingForAcceptance -> {
                 pickupHeadline.text = "${state.target.name}의 수락을 기다리는 중"
                 pickupDetail.text = "${state.target.name} 폰에 위치 공유를 요청했어요. 수락하면 바로 길 안내를 시작해요."
@@ -616,6 +627,138 @@ class MainActivity : AppCompatActivity() {
                 pickupActionButton.setText(R.string.action_stop_pickup)
             }
             else -> Unit
+        }
+    }
+
+    /** 여러 명 픽업 진행 줄: 다음 사람, 사람별 상태, 다음 사람(또는 최종 목적지)까지 남은 거리·시간 */
+    private fun renderMultiPickup(view: MultiPickupView) {
+        val riders = view.stops.filter { it.consent != MultiStop.Consent.OFF && it.consent != MultiStop.Consent.DECLINED }
+        val picked = riders.count { it.pickedUp }
+        val next = view.next
+        val destinationName = view.destination?.name
+        pickupHeadline.text = when {
+            next != null -> "여러 명 픽업 · 다음 ${next.member.name} (${picked}/${riders.size} 탑승)"
+            view.headingToDestination && destinationName != null -> "모두 탑승 · ${destinationName.euro} 가는 중"
+            else -> "여러 명 픽업 · 공유 수락을 기다리는 중 (${picked}/${riders.size} 탑승)"
+        }
+        val now = System.currentTimeMillis()
+        val parts = view.stops.mapIndexed { index, stop ->
+            val number = "${index + 1}. ${stop.member.name}${if (stop.pinned) "(고정)" else ""}"
+            val status = when {
+                stop.pickedUp -> "탑승"
+                stop.consent == MultiStop.Consent.WAITING -> "수락 대기"
+                stop.consent == MultiStop.Consent.DECLINED -> "거절"
+                stop.consent == MultiStop.Consent.OFF -> "공유 꺼짐"
+                stop.location == null -> "위치 확인 중"
+                stop.remainTimeSeconds != null -> "${"%.1f".format((stop.remainDistanceMeters ?: 0) / 1000.0)}km·${(stop.remainTimeSeconds + 59) / 60}분"
+                else -> "앞사람 다음"
+            }
+            val old = if (!stop.pickedUp && stop.hasOldLocation(now)) " · ${ago(stop.location!!.updatedAt)} 위치" else ""
+            "$number $status$old"
+        }
+        pickupDetail.text = (parts + listOfNotNull(destinationName?.let { "→ $it" })).joinToString("   ")
+        val distance = next?.remainDistanceMeters ?: if (view.headingToDestination) view.destinationRemainDistanceMeters else null
+        val time = next?.remainTimeSeconds ?: if (view.headingToDestination) view.destinationRemainTimeSeconds else null
+        remainDistance.text = if (distance == null) "–" else "%.1fkm".format(distance / 1000.0)
+        remainTime.text = if (time == null) "–" else "${(time + 59) / 60}분"
+        pickupActionButton.setText(R.string.action_stop_pickup)
+    }
+
+    // ---- 스마트 멀티 픽업 구성(정차 중) ----
+
+    /** 1) 태울 사람을 원하는 순서대로 고른다. 누른 순서가 픽업 순서(기본 경로)다. */
+    private fun showMultiPickup() {
+        if (session.isPickupBusy) {
+            toast.show("진행 중인 픽업을 끝낸 뒤 시작해 주세요.")
+            return
+        }
+        val candidates = session.pickupCandidates().filter { session.permissionOf(it) != SharePermission.OFF }
+        if (candidates.size < 2) {
+            toast.show("위치 공유를 허용한 사람이 두 명 이상이어야 여러 명 픽업을 할 수 있어요.")
+            return
+        }
+        val order = mutableListOf<Member>()
+        val list = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(48), dp(8), dp(48), 0)
+        }
+        val hint = TextView(this).apply {
+            setTextAppearance(CoreR.style.TextAppearance_Pleos_BodySmall)
+            setPadding(0, 0, 0, dp(16))
+        }
+        list.addView(hint)
+        val rows = candidates.map { member ->
+            TextView(this).apply {
+                setTextAppearance(CoreR.style.TextAppearance_Pleos_Body)
+                setBackgroundResource(CoreR.drawable.pleos_bg_row)
+                minHeight = dp(100)
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(dp(24), 0, dp(24), 0)
+                list.addView(this)
+            }
+        }
+        fun refresh() {
+            candidates.forEachIndexed { i, member ->
+                val position = order.indexOf(member)
+                val permission = if (session.permissionOf(member) == SharePermission.ALWAYS) "항상 허용" else "일시적 허용 · 수락 요청"
+                rows[i].text = (if (position >= 0) "${position + 1}  " else "     ") + "${member.name}   ·  $permission"
+                rows[i].isActivated = position >= 0
+            }
+            hint.text = if (order.isEmpty()) "태울 순서대로 눌러 주세요. 누른 순서가 기본 경로예요." else "픽업 순서: " + order.joinToString(" → ") { it.name }
+        }
+        rows.forEachIndexed { i, row ->
+            row.setOnClickListener {
+                val member = candidates[i]
+                if (member in order) order.remove(member) else order += member
+                refresh()
+            }
+        }
+        refresh()
+        AlertDialog.Builder(this)
+            .setTitle("여러 명 픽업 · 태울 사람과 순서")
+            .setView(list)
+            .setPositiveButton("다음") { _, _ ->
+                when {
+                    order.isEmpty() -> toast.show("태울 사람을 골라 주세요.")
+                    order.size == 1 -> session.startMultiPickup(order, null, null)
+                    else -> showMultiPickupPin(order.toList())
+                }
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    /** 2) 반드시 먼저 태울 사람을 고정한다(선택). 고정한 사람은 순서 맨 앞에 둔다. */
+    private fun showMultiPickupPin(order: List<Member>) {
+        val labels = listOf("고정 안 함 (" + order.joinToString(" → ") { it.name } + ")") +
+            order.map { pinned -> "${pinned.name} 먼저 고정 (" + (listOf(pinned) + (order - pinned)).joinToString(" → ") { it.name } + ")" }
+        var choice = 0
+        AlertDialog.Builder(this)
+            .setTitle("반드시 먼저 픽업할 사람")
+            .setSingleChoiceItems(
+                android.widget.ArrayAdapter(this, R.layout.item_dialog_single_choice, labels), 0,
+            ) { _, which -> choice = which }
+            .setPositiveButton("다음") { _, _ -> showMultiPickupDestination(order, if (choice == 0) null else order[choice - 1].id) }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    /** 3) 최종 목적지를 고른다: 지금 안내 중인 목적지, 최근 목적지, 또는 마지막 사람에서 끝. */
+    private fun showMultiPickupDestination(order: List<Member>, pinnedId: String?) {
+        session.loadSharePlaces { all ->
+            if (isFinishing) return@loadSharePlaces
+            val places = all.filter { it.kind != SharePlace.Kind.HERE }
+            val labels = places.map {
+                when (it.kind) {
+                    SharePlace.Kind.CURRENT -> "지금 안내 중 · ${it.name}"
+                    else -> "최근 목적지 · ${it.name}"
+                }
+            } + "최종 목적지 없음 (마지막 사람을 태우면 끝)"
+            AlertDialog.Builder(this)
+                .setTitle("최종 목적지")
+                .setItems(labels.toTypedArray()) { _, which -> session.startMultiPickup(order, pinnedId, places.getOrNull(which)) }
+                .setNegativeButton("취소", null)
+                .show()
         }
     }
 

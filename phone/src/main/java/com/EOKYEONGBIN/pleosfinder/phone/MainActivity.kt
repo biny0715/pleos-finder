@@ -626,16 +626,24 @@ class MainActivity : AppCompatActivity() {
         pickupMetrics.visibility = if (current?.state == PickupStatus.State.ON_THE_WAY) View.VISIBLE else View.GONE
         when (current?.state) {
             PickupStatus.State.ON_THE_WAY -> {
-                pickupHeadline.text = "${current.driverName.iGa} 오고 있어요"
-                pickupDetail.text = "내 위치가 바뀌면 길 안내도 따라 바뀌어요."
+                if (current.isMulti) {
+                    // 여러 명 픽업: 내 차례와 앞사람, 내 차례까지의 경로상 남은 거리·시간과 예상 픽업 시각
+                    pickupHeadline.text = "${current.driverName.iGa} 오고 있어요 · ${current.total}명 중 ${current.order}번째"
+                    val turn = if (current.ahead.isEmpty()) "다음이 내 차례예요." else "${current.ahead} 픽업 후 내 차례예요."
+                    val eta = current.etaAt?.let { "예상 픽업 ${PICKUP_TIME_FORMAT.format(Date(it))}" } ?: "앞사람을 태운 뒤 남은 시간을 알려 드려요"
+                    pickupDetail.text = "$turn\n$eta · ${PICKUP_TIME_FORMAT.format(Date(current.updatedAt))} 갱신"
+                } else {
+                    pickupHeadline.text = "${current.driverName.iGa} 오고 있어요"
+                    pickupDetail.text = "내 위치가 바뀌면 길 안내도 따라 바뀌어요."
+                }
                 val distance = current.remainDistanceMeters
                 val time = current.remainTimeSeconds
                 remainDistance.text = if (distance == null) "–" else "%.1fkm".format(distance / 1000.0)
                 remainTime.text = if (time == null) "–" else "${(time + 59) / 60}분"
             }
             PickupStatus.State.ARRIVED -> {
-                pickupHeadline.text = "${current.driverName.iGa} 도착했어요"
-                pickupDetail.text = "차가 근처에 있어요."
+                pickupHeadline.text = if (current.isMulti) "탑승 완료 · ${current.driverName} 차" else "${current.driverName.iGa} 도착했어요"
+                pickupDetail.text = if (current.isMulti) "다른 사람을 태우고 목적지로 가요." else "차가 근처에 있어요."
             }
             else -> Unit
         }
@@ -717,6 +725,7 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         val TIME_FORMAT = SimpleDateFormat("HH:mm:ss", Locale.KOREA)
+        val PICKUP_TIME_FORMAT = SimpleDateFormat("a h:mm", Locale.KOREA)
         const val DOUBLE_TAP_MS = 400L
         const val SECTION_FAMILY = "family"
         const val SECTION_FRIENDS = "friends"

@@ -164,6 +164,9 @@ class FirebaseFinderRepository(
                 "remainDistanceMeters" to status.remainDistanceMeters,
                 "remainTimeSeconds" to status.remainTimeSeconds,
                 "updatedAt" to status.updatedAt,
+                "order" to status.order,
+                "total" to status.total,
+                "ahead" to status.ahead,
             )
         )
     }
@@ -181,6 +184,9 @@ class FirebaseFinderRepository(
                     remainDistanceMeters = snapshot.long("remainDistanceMeters")?.toInt(),
                     remainTimeSeconds = snapshot.long("remainTimeSeconds")?.toInt(),
                     updatedAt = snapshot.long("updatedAt") ?: 0L,
+                    order = snapshot.long("order")?.toInt() ?: 0,
+                    total = snapshot.long("total")?.toInt() ?: 0,
+                    ahead = snapshot.string("ahead"),
                 )
             )
         }

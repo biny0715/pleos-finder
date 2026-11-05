@@ -126,8 +126,19 @@ data class PickupStatus(
     val remainDistanceMeters: Int?,
     val remainTimeSeconds: Int?,
     val updatedAt: Long,
+    /** 여러 명 픽업에서 내 차례(1부터). 한 명 픽업이면 0 */
+    val order: Int = 0,
+    /** 여러 명 픽업의 전체 인원. 한 명 픽업이면 0 */
+    val total: Int = 0,
+    /** 나보다 먼저 태울 사람(아직 타지 않은 사람) 이름, 예: "엄마, 아들" */
+    val ahead: String = "",
 ) {
     enum class State { ON_THE_WAY, ARRIVED, CANCELLED }
+
+    val isMulti: Boolean get() = total > 1
+
+    /** 남은 시간으로 계산한 예상 픽업 시각. 남은 시간을 모르면 null */
+    val etaAt: Long? get() = remainTimeSeconds?.let { updatedAt + it * 1000L }
 
     /** 지난 픽업의 결과가 서버에 남아 있어도 오래된 것은 화면·알림에 쓰지 않는다. */
     fun isStale(now: Long = System.currentTimeMillis()): Boolean = now - updatedAt > STALE_MS

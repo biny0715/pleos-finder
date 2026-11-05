@@ -18,4 +18,7 @@ sealed interface PickupState {
     ) : PickupState
 
     data class Completed(val target: Member) : PickupState
+
+    /** 여러 명 픽업 진행 중 */
+    data class Multi(val view: MultiPickupView) : PickupState
 }

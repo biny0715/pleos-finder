@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 대화상자의 하나 고르기 목록 한 줄: 차량 화면 크기(글자 Body, 줄 높이 100dp) -->
+<CheckedTextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/text1"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:checkMark="?android:attr/listChoiceIndicatorSingle"
+    android:gravity="center_vertical"
+    android:minHeight="100dp"
+    android:paddingStart="48dp"
+    android:paddingEnd="48dp"
+    android:textAppearance="@style/TextAppearance.Pleos.Body" />

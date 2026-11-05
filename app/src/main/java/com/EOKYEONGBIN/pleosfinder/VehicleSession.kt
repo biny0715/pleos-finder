@@ -32,6 +32,9 @@ import com.EOKYEONGBIN.pleosfinder.core.SharePermission
 import com.EOKYEONGBIN.pleosfinder.core.Subscription
 import com.EOKYEONGBIN.pleosfinder.core.VehicleInfo
 import com.EOKYEONGBIN.pleosfinder.core.VehicleLocation
+import com.EOKYEONGBIN.pleosfinder.pickup.MultiDestination
+import com.EOKYEONGBIN.pleosfinder.pickup.MultiPickupController
+import com.EOKYEONGBIN.pleosfinder.pickup.MultiStop
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupController
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupRequester
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupState
@@ -94,6 +97,7 @@ class VehicleSession(private val context: Context) {
 
     private lateinit var pickupController: PickupController
     private lateinit var pickupRequester: PickupRequester
+    private lateinit var multiPickup: MultiPickupController
 
     var naviConnected = false
         private set
@@ -200,6 +204,7 @@ class VehicleSession(private val context: Context) {
             onConnected = {
                 naviHelper.addListener(naviEventListener)
                 naviHelper.addListener(pickupController)
+                naviHelper.addListener(multiPickup)
                 mainHandler.post {
                     naviConnected = true
                     notifyChanged()
@@ -248,8 +253,12 @@ class VehicleSession(private val context: Context) {
         if (driver == me && !force) return
         pickupRequester.cancel()
         pickupController.stop()
+        multiPickup.stop()
         endDestination()
-        if (naviConnected) naviHelper.removeListener(pickupController)
+        if (naviConnected) {
+            naviHelper.removeListener(pickupController)
+            naviHelper.removeListener(multiPickup)
+        }
         accountSubscriptions.forEach { it.cancel() }
         accountSubscriptions.clear()
         contactSubscriptions.values.flatten().forEach { it.cancel() }
@@ -264,7 +273,10 @@ class VehicleSession(private val context: Context) {
         me = driver
         prefs.edit().putString(KEY_DRIVER, driver.id).apply()
         createPickup()
-        if (naviConnected) naviHelper.addListener(pickupController)
+        if (naviConnected) {
+            naviHelper.addListener(pickupController)
+            naviHelper.addListener(multiPickup)
+        }
         accountSubscriptions += subscribeAccount()
         myPosition?.let { (lat, lng) -> publishVehicle(lat, lng) }
         showMessage("${driver.name} · ${vehicle.name.euro} 시연해요. ${driver.name}의 공유 설정이 적용돼요.")
@@ -289,6 +301,7 @@ class VehicleSession(private val context: Context) {
             onFinished = { pickupRequester.endShare(it) },
         )
         pickupRequester = PickupRequester(repository, pickupController, me, ::onPickupState, ::showMessage)
+        multiPickup = MultiPickupController(naviHelper, repository, me, ::permissionOf, ::onPickupState, ::showMessage)
         pickupState = PickupState.Idle
     }
 
@@ -374,8 +387,10 @@ class VehicleSession(private val context: Context) {
      */
     fun visiblePeopleLocations(): List<Pair<Member, MemberLocation>> {
         val pickupTarget = (pickupState as? PickupState.OnTheWay)?.target?.id
+        val multiRiders = (pickupState as? PickupState.Multi)?.view?.stops
+            ?.filter { it.consent == MultiStop.Consent.READY && !it.pickedUp }?.map { it.member.id }.orEmpty()
         return phoneLocations.mapNotNull { (id, location) ->
-            val shared = id == pickupTarget ||
+            val shared = id == pickupTarget || id in multiRiders ||
                 (permissionsToMe[id] == SharePermission.ALWAYS && isConnected(DemoDirectory.member(id))) ||
                 myGroups().any { g -> g.memberOf(me.id)?.status == InviteStatus.ACCEPTED && g.memberOf(id)?.isSharing() == true }
             if (shared) person(id) to location else null
@@ -479,7 +494,29 @@ class VehicleSession(private val context: Context) {
     // ---- 픽업·길 안내 ----
 
     val isPickupBusy: Boolean
-        get() = pickupState is PickupState.WaitingForAcceptance || pickupState is PickupState.OnTheWay
+        get() = pickupState is PickupState.WaitingForAcceptance || pickupState is PickupState.OnTheWay || pickupState is PickupState.Multi
+
+    /**
+     * 스마트 멀티 픽업 1단계: 고른 순서 그대로(pinnedId 는 맨 앞 고정) 여러 명을 태우고 최종 목적지로 간다.
+     * 한 명만 고르면 기존 단일 픽업으로 이어진다.
+     */
+    fun startMultiPickup(members: List<Member>, pinnedId: String?, finalDestination: SharePlace?) {
+        if (members.isEmpty()) return
+        if (members.size == 1) {
+            startPickup(members.first())
+            return
+        }
+        endDestination()
+        pickupRequester.cancel()
+        pickupController.stop()
+        multiPickup.start(
+            members, pinnedId,
+            finalDestination?.let { MultiDestination(it.name, it.address, it.latitude, it.longitude, it.poiId, it.poiSubId) },
+        )
+    }
+
+    /** 여러 명 픽업에서 다음 사람을 태웠다고 운전자가 확인한다. */
+    fun confirmNextPickedUp() = multiPickup.confirmNextPickedUp()
 
     fun startPickup(member: Member) {
         // 픽업 안내가 그룹 목적지 안내를 대신한다.
@@ -654,6 +691,10 @@ class VehicleSession(private val context: Context) {
             is PickupState.OnTheWay -> {
                 pickupController.stop()
                 showMessage("픽업을 종료했어요.")
+            }
+            is PickupState.Multi -> {
+                multiPickup.stop()
+                showMessage("여러 명 픽업을 종료했어요. 아직 타지 않은 사람에게 알렸어요.")
             }
             else -> Unit
         }

@@ -32,6 +32,15 @@
                 android:text="@string/app_title"
                 android:textAppearance="@style/TextAppearance.Pleos.Title" />
 
+            <!-- 스마트 멀티 픽업: 여러 명을 순서대로 골라 태우고 최종 목적지로 (정차 중에만 구성) -->
+            <Button
+                android:id="@+id/multiPickupButton"
+                style="@style/Widget.Pleos.Button.Basic"
+                android:layout_width="wrap_content"
+                android:layout_height="80dp"
+                android:layout_marginEnd="16dp"
+                android:text="@string/action_multi_pickup" />
+
             <!-- 운전자 프로필: 눌러서 계정(운전자) 전환 -->
             <LinearLayout
                 android:id="@+id/profileChip"
@@ -156,6 +165,16 @@
                         android:textAppearance="@style/TextAppearance.Pleos.Label" />
                 </LinearLayout>
             </LinearLayout>
+
+            <!-- 여러 명 픽업: 다음 사람이 탔다고 확인 -->
+            <Button
+                android:id="@+id/pickupConfirmButton"
+                style="@style/Widget.Pleos.Button.Filled"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:text="@string/action_picked_up"
+                android:visibility="gone" />
 
             <Button
                 android:id="@+id/pickupActionButton"

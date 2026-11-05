@@ -16,6 +16,8 @@
     <string name="action_cancel_request">요청 취소</string>
     <string name="action_close">닫기</string>
     <string name="action_rename">이름 변경</string>
+    <string name="action_multi_pickup">여러 명 픽업</string>
+    <string name="action_picked_up">탑승 완료</string>
     <string name="action_share_destination">목적지 공유</string>
     <string name="action_start_navigation">안내 시작</string>
     <string name="action_end_destination_share">공유 끝내기</string>

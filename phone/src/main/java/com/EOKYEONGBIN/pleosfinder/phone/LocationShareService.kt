@@ -103,8 +103,14 @@ class LocationShareService : Service(), LocationListener {
         return START_STICKY
     }
 
+    private val stopIfAllOff = Runnable {
+        val groupSharing = groups.any { it.memberOf(FinderServices.me.id)?.isSharing() == true }
+        if (permissions.values.all { it == SharePermission.OFF } && !groupSharing) stopSelf()
+    }
+
     override fun onDestroy() {
         handler.removeCallbacks(groupExpiryCheck)
+        handler.removeCallbacks(stopIfAllOff)
         subscriptions.forEach { it.cancel() }
         subscriptions.clear()
         stopLocationUpdates()
@@ -139,9 +145,13 @@ class LocationShareService : Service(), LocationListener {
         val request = shareRequest
         val groupSharing = groups.any { it.memberOf(FinderServices.me.id)?.isSharing() == true }
         if (permissions.values.all { it == SharePermission.OFF } && !groupSharing) {
-            stopSelf()
+            // 시연 데이터 초기화처럼 서버 값이 잠깐 비는 순간에 멈췄다가 다시 켜지며 GPS 요청이 끊기는 일이 있어,
+            // 3초 뒤에도 모두 꺼져 있을 때만 멈춘다.
+            handler.removeCallbacks(stopIfAllOff)
+            handler.postDelayed(stopIfAllOff, STOP_DELAY_MS)
             return
         }
+        handler.removeCallbacks(stopIfAllOff)
         val share = permissions.values.any { it == SharePermission.ALWAYS } || groupSharing ||
             (request != null && request.isActiveShare() && permissions[request.requesterId] == SharePermission.TEMPORARY)
         if (share) startLocationUpdates() else stopLocationUpdates()
@@ -186,7 +196,11 @@ class LocationShareService : Service(), LocationListener {
         lastPickupState = status.state
         if (status.isStale()) return
         val text = when (status.state) {
-            PickupStatus.State.ON_THE_WAY -> "${status.driverName.iGa} 픽업하러 오고 있어요"
+            PickupStatus.State.ON_THE_WAY -> if (status.isMulti) {
+                "${status.driverName.iGa} 픽업하러 오고 있어요 · ${status.total}명 중 ${status.order}번째"
+            } else {
+                "${status.driverName.iGa} 픽업하러 오고 있어요"
+            }
             PickupStatus.State.ARRIVED -> "${status.driverName.iGa} 도착했어요"
             PickupStatus.State.CANCELLED -> return
         }
@@ -280,6 +294,7 @@ class LocationShareService : Service(), LocationListener {
         private const val MIN_INTERVAL_MS = 5_000L
         private const val MIN_DISTANCE_M = 0f
         private const val GROUP_CHECK_MS = 30_000L
+        private const val STOP_DELAY_MS = 3_000L
         private const val ACTION_ACCEPT_REQUEST = "com.EOKYEONGBIN.pleosfinder.phone.ACCEPT_REQUEST"
         private const val ACTION_DECLINE_REQUEST = "com.EOKYEONGBIN.pleosfinder.phone.DECLINE_REQUEST"
 
