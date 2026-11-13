@@ -24,6 +24,16 @@ Pleos Connect Emulator(차량)와 Android 폰 에뮬레이터에서 캡처한 �
 | **강릉 여행 그룹에 강릉 경포해변 공유, 차량별 도착 예정** | **운전 중 화면 제한 (D단 주행 중 안내)** |
 | ![그룹 목적지 공유](docs/images/car-group-destination.jpg) | ![운전 중 화면 제한](docs/images/car-driving-restriction.jpg) |
 
+### 차량끼리 (아빠 아이오닉5 ↔ 김민수 GV70)
+
+차량 에뮬레이터 한 대에서 프로필 → **다른 차량으로 시연**으로 차량을 바꿔 가며 캡처했습니다.
+
+| 아빠 차: 김민수와 차량 위치 공유 시간 설정 (30분 단위) | 아빠 차: 서로 공유 중 (~오전 10:56) |
+|---|---|
+| ![차량끼리 공유 시간](docs/images/car-v2v-time.jpg) | ![차량끼리 공유 중](docs/images/car-v2v-sharing.jpg) |
+| **김민수 GV70: 아빠가 공유한 강릉 목적지 팝업, 아빠 아이오닉5 위치 공유 중** | **김민수 GV70: 안내 시작 후 지도에 강릉 경포해변 깃발과 남은 시간** |
+| ![GV70 목적지 공유 받기](docs/images/car-gv70-destination-popup.jpg) | ![GV70 지도](docs/images/car-gv70-map.jpg) |
+
 ### 폰 앱 (아들)
 
 | 판교역에서 기다리는 아들의 픽업 현황 | 여러 명 픽업: 3명 중 2번째, 예상 픽업 시각 | 강릉 경포해변 목적지 공유 받기 | 강릉 여행 그룹: 아빠 차 도착 예정 |
