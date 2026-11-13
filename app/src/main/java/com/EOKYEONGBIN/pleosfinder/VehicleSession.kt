@@ -68,8 +68,8 @@ data class SharePlace(
     val poiId: String = "",
     val poiSubId: String = "",
 ) {
-    /** CURRENT = 지금 안내 중인 목적지, RECENT = 최근 목적지, HERE = 지금 내 차 위치(여기로 모이기) */
-    enum class Kind { CURRENT, RECENT, HERE }
+    /** CURRENT = 지금 안내 중인 목적지, SAVED = 저장한 장소(집·여행지), RECENT = 최근 목적지, HERE = 지금 내 차 위치(여기로 모이기) */
+    enum class Kind { CURRENT, SAVED, RECENT, HERE }
 }
 
 class VehicleSession(private val context: Context) {
@@ -459,7 +459,7 @@ class VehicleSession(private val context: Context) {
         repository.setGroupMember(group.id, mine.withShare(share))
     }
 
-    /** 그룹에 정한 시각까지 일시적으로 공유한다(Gleo: "주말 캠핑 그룹에 2시간만 공유해줘"). */
+    /** 그룹에 정한 시각까지 일시적으로 공유한다(Gleo: "강릉 여행 그룹에 2시간만 공유해줘"). */
     fun setGroupShareUntil(group: FinderGroup, until: Long) {
         val mine = group.memberOf(me.id) ?: return
         repository.setGroupMember(group.id, mine.copy(share = SharePermission.TEMPORARY, shareUntil = until))
@@ -566,8 +566,11 @@ class VehicleSession(private val context: Context) {
         currentDestination?.takeIf { it.name.isNotBlank() && (it.latitude != 0.0 || it.longitude != 0.0) }?.let {
             places += SharePlace(SharePlace.Kind.CURRENT, it.name, it.address.orEmpty(), it.latitude, it.longitude, it.poiId.orEmpty(), it.poiSubId.orEmpty())
         }
+        DemoDirectory.savedPlaces.forEach { places += SharePlace(SharePlace.Kind.SAVED, it.name, it.address, it.latitude, it.longitude) }
+        // 지난 픽업은 사람 위치가 '최근 목적지'로 남으므로 연락처 이름은 뺀다.
+        val contactNames = DemoDirectory.contactNames
         recentDestinations.orEmpty()
-            .filter { it.name.isNotBlank() && places.none { p -> p.name == it.name } }
+            .filter { it.name.isNotBlank() && it.name !in contactNames && places.none { p -> p.name == it.name } }
             .take(MAX_RECENT_PLACES)
             .forEach { places += SharePlace(SharePlace.Kind.RECENT, it.name, it.address.orEmpty(), it.latitude, it.longitude, it.poiId.orEmpty(), it.poiSubId.orEmpty()) }
         myPosition?.let { (lat, lng) -> places += SharePlace(SharePlace.Kind.HERE, "${me.name}의 차 위치", "", lat, lng) }
@@ -589,7 +592,8 @@ class VehicleSession(private val context: Context) {
         )
         val id = repository.shareDestination(share)
         if (goTogether) {
-            if (place.kind == SharePlace.Kind.RECENT) requestRoute(share)
+            // 지금 안내 중인 목적지는 이미 안내 중이고, 저장한 장소·최근 목적지는 새로 안내를 시작한다.
+            if (place.kind != SharePlace.Kind.CURRENT) requestRoute(share)
             followingSince = System.currentTimeMillis()
             activeDestination = group.id to id
         }

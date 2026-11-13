@@ -60,6 +60,6 @@ interface FinderRepository {
     /** 그룹 id → 지금 공유 중인 목적지 */
     fun observeDestinationShares(onUpdate: (Map<String, DestinationShare>) -> Unit): Subscription
 
-    /** 시연 데이터로 되돌린다(가족: 아빠·엄마, 친구: 김민수·박지훈, 그룹: 주말 캠핑). */
+    /** 시연 데이터로 되돌린다(가족: 아빠·엄마, 친구: 김민수·박지훈, 그룹: 강릉 여행). */
     fun resetDemo()
 }

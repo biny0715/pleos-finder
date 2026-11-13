@@ -599,7 +599,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showCreateGroup() {
         PleosTextInputDialog.show(
-            this, title = "그룹 만들기", label = "그룹 이름", hint = "예: 주말 캠핑", initial = "", confirmLabel = "만들기",
+            this, title = "그룹 만들기", label = "그룹 이름", hint = "예: 강릉 여행", initial = "", confirmLabel = "만들기",
         ) { name -> GroupActivity.open(this, repository.createGroup(name, me.id)) }
     }
 

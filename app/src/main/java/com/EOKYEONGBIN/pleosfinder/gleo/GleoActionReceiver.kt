@@ -26,8 +26,8 @@ import java.util.Locale
 /**
  * Gleo AI 음성 명령을 받는다(assets/schema.json 의 component = "service"). Gleo 함수는 최대 3개라 다음처럼 묶었다.
  * - PICKUP(action = start | stop | status, memberName): "와이프 픽업 가줘", "픽업 그만", "아들 어디쯤이야?"
- * - SHARE_LOCATION(targetName, shareType, durationMinutes, untilEndOfToday): "박지훈한테 1시간만 위치 공유해줘", "주말 캠핑 그룹에 2시간만 공유해줘",
- *   "주말 캠핑 그룹에 지금 목적지 공유해줘"(shareType = current_destination), "주말 캠핑 그룹에 여기로 모이자고 해줘"(car_position)
+ * - SHARE_LOCATION(targetName, shareType, durationMinutes, untilEndOfToday): "박지훈한테 1시간만 위치 공유해줘", "강릉 여행 그룹에 2시간만 공유해줘",
+ *   "강릉 여행 그룹에 지금 목적지 공유해줘"(shareType = current_destination), "강릉 여행 그룹에 여기로 모이자고 해줘"(car_position)
  * - STOP_LOCATION_SHARING(targetName, category): "친구 목록 중에 위치 공유된 것 모두 꺼줘"
  * Gleo 는 sendBroadcast 로 action = "패키지 이름.함수 이름", ACTION_PARAM = 파라미터 JSON 을 보낸다.
  */

@@ -102,7 +102,7 @@ class GroupActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.renameButton).setOnClickListener {
             val current = group ?: return@setOnClickListener
             PleosTextInputDialog.show(
-                this, title = "그룹 이름 변경", label = "그룹 이름", hint = "예: 주말 캠핑", initial = current.name, confirmLabel = "변경",
+                this, title = "그룹 이름 변경", label = "그룹 이름", hint = "예: 강릉 여행", initial = current.name, confirmLabel = "변경",
             ) { name -> if (name != current.name) repository.renameGroup(current.id, name) }
         }
         shareGroup.setOnCheckedChangeListener { _, checkedId ->

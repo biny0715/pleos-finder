@@ -326,6 +326,7 @@ class MainActivity : AppCompatActivity() {
             val labels = places.map {
                 when (it.kind) {
                     SharePlace.Kind.CURRENT -> "지금 안내 중 · ${it.name}"
+                    SharePlace.Kind.SAVED -> "저장한 장소 · ${it.name}"
                     SharePlace.Kind.RECENT -> "최근 목적지 · ${it.name}"
                     SharePlace.Kind.HERE -> "지금 내 차 위치 (여기로 모이기)"
                 }
@@ -751,6 +752,7 @@ class MainActivity : AppCompatActivity() {
             val labels = places.map {
                 when (it.kind) {
                     SharePlace.Kind.CURRENT -> "지금 안내 중 · ${it.name}"
+                    SharePlace.Kind.SAVED -> "저장한 장소 · ${it.name}"
                     else -> "최근 목적지 · ${it.name}"
                 }
             } + "최종 목적지 없음 (마지막 사람을 태우면 끝)"
@@ -872,7 +874,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showCreateGroup() {
         PleosTextInputDialog.show(
-            this, title = "그룹 만들기", label = "그룹 이름", hint = "예: 주말 캠핑", initial = "", confirmLabel = "만들기",
+            this, title = "그룹 만들기", label = "그룹 이름", hint = "예: 강릉 여행", initial = "", confirmLabel = "만들기",
         ) { name ->
             openGroupId = session.createGroup(name)
             render()
@@ -881,7 +883,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showRenameGroup(group: FinderGroup) {
         PleosTextInputDialog.show(
-            this, title = "그룹 이름 변경", label = "그룹 이름", hint = "예: 주말 캠핑", initial = group.name, confirmLabel = "변경",
+            this, title = "그룹 이름 변경", label = "그룹 이름", hint = "예: 강릉 여행", initial = group.name, confirmLabel = "변경",
         ) { name -> session.renameGroup(group, name) }
     }
 
