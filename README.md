@@ -77,7 +77,7 @@ Pleos Connect Emulator(차량)와 Android 폰 에뮬레이터에서 캡처한 �
 | 패널 제목을 눌러 접기·펼치기, 패널마다 4줄까지 보이고 나머지는 더 보기 | ○ | ○ |
 | 차량 위치는 지금 운전하는 사람의 설정으로만 공유 | ○ | ○ (운전 중인 가족·친구 줄에 차량 표시) |
 | 운전 중 화면 제한: 주행 중(D단)에는 초대·그룹 만들기·이름 변경·운전자 전환을 막고 버튼을 흐리게, 누르면 "정차한 뒤 이용해 주세요" 안내 | ○ | - |
-| Gleo AI 음성 명령: 픽업, 사람·그룹에 시간 제한 위치 공유, 그룹 목적지 공유("지금 목적지 공유해줘", "여기로 모이자고 해줘"), 공유 끄기 | ○ | - |
+| Gleo AI 음성 명령: 픽업(한 명·여러 명, 더 빠른 순서 음성 추천과 "바꿔줘"/"그대로 가자"), 사람·그룹에 시간 제한 위치 공유, 그룹 목적지 공유("지금 목적지 공유해줘", "여기로 모이자고 해줘"), 공유 끄기 | ○ | - |
 | 스마트 멀티 픽업 1단계: 여러 명을 태울 순서대로 선택·특정 인원 먼저 고정·최종 목적지 → 고른 순서 그대로 내비 경유지 안내, [탑승 완료]·50m 도착으로 다음 사람 | ○ | ○ (N명 중 M번째, 앞사람, 본인 차례까지 경로상 km·분·예상 픽업 시각) |
 
 | 스마트 멀티 픽업 2단계: 모두의 위치가 오면 실제 도로 이동시간으로 순서를 비교해 **2분 이상 빠른 순서가 있을 때만 선택적으로 추천**(고정한 사람은 항상 맨 앞), [추천 순서로 변경]을 누를 때만 적용하고 [기존 순서 유지]·닫기는 고른 순서 그대로 | ○ | ○ (바뀐 차례 표시) |
@@ -93,7 +93,7 @@ Pleos Connect Emulator(차량)와 Android 폰 에뮬레이터에서 캡처한 �
 
 | 기능 | 예시 발화 | 동작 |
 |---|---|---|
-| `PICKUP(action, memberName)` | "와이프 픽업 가줘", "픽업 그만할래", "아들 지금 어디쯤이야?" | 픽업 시작·종료, 남은 거리·시간 답변 |
+| `PICKUP(action, memberName)` | "와이프 픽업 가줘", "픽업 그만할래", "아들 지금 어디쯤이야?" | 한 명 픽업 시작·종료, 남은 거리·시간 답변 |
 | `PICKUP` 여러 명 (`memberNames`, `pinnedName`, `destinationName`, `action`=`accept_order`/`keep_order`) | "와이프랑 아들 태우고 집에 가자", "응 바꿔줘", "그대로 가자" | 말한 순서로 여러 명 픽업 시작, 더 빠른 순서가 있으면 음성으로 추천하고 되묻기, 답에 따라 변경·유지 |
 | `SHARE_LOCATION(targetName, shareType, durationMinutes, untilEndOfToday)` | "박지훈한테 1시간만 위치 공유해줘", "강릉 여행 그룹에 2시간만 공유해줘", "강릉 여행 그룹에 지금 목적지 공유해줘", "강릉 여행 그룹에 여기로 모이자고 해줘" | 사람이면 차량끼리 서로 공유, 그룹이면 그룹에 일시적 공유(30분 단위, 최대 24시간). shareType이 current_destination이면 지금 내비 목적지를, car_position이면 지금 내 차 위치(모이는 곳)를 그룹에 목적지로 공유 |
 | `STOP_LOCATION_SHARING(targetName, category)` | "친구 목록 중에 위치 공유된 것 모두 꺼줘" | 한 사람·그룹, 또는 가족·친구·그룹·전체에서 내가 켠 공유를 끔 |
@@ -148,7 +148,7 @@ Pleos Connect Emulator(차량)와 Android 폰 에뮬레이터에서 캡처한 �
    - 폰 위치를 바꾸면 경로가 갱신되고, 차량 위치 근처(회사, 위도 37.41275, 경도 127.09470)로 옮기면 픽업이 자동 완료됩니다.
 7. 친구 패널에서 **김민수**를 누르면 **픽업**과 **위치 공유**가, **박지훈**(차량만)을 누르면 **위치 공유**가 나옵니다. 위치 공유는 **오늘 하루만 공유** 또는 **시간 설정**(−30분 / +30분, 최대 24시간)으로 정한 시간 동안만 서로 차량 위치를 공유합니다.
 8. 그룹 패널의 **강릉 여행**을 누르면 화면이 두 칸으로 나뉘며 오른쪽에 구성원과 내 공유 설정이 나옵니다(닫기를 누르면 한 칸으로 돌아옴). **+30분**을 누를 때마다 공유 시간이 30분씩 늘어납니다. **목적지 공유** → **저장한 장소 · 강릉 경포해변**을 고르면 아빠 차는 강릉으로 안내를 시작하고, 그룹 구성원에게 "목적지 공유" 팝업이 갑니다.
-   - 여러 명 픽업은 오른쪽 위 **여러 명 픽업**에서 태울 순서대로 고르고(필요하면 한 명 먼저 고정) 최종 목적지로 **저장한 장소 · 우리 집**을 고릅니다.
+   - 여러 명 픽업은 오른쪽 위 **여러 명 픽업**에서 태울 순서대로 고르고(필요하면 한 명 먼저 고정) 최종 목적지로 **저장한 장소 · 우리 집**을 고릅니다. 예를 들어 **김민수 → 와이프 → 아들** 순서로 고르면 고른 순서로 안내가 시작되고, 잠시 뒤 "더 빠른 순서 추천" 팝업(와이프 → 아들 → 김민수, 약 3분 빠름)이 뜹니다. **추천 순서로 변경**을 누르면 경로와 각자의 차례가 바뀌고, **기존 순서 유지**를 누르면 그대로 갑니다. 아들 폰에는 "3명 중 N번째"와 예상 픽업 시각이 보이며, 차량의 **탑승 완료**로 다음 사람으로 넘어갑니다.
 9. 엄마로 전환하면 목록이 엄마 기준으로 바뀌고, 아이오닉5의 위치는 엄마의 설정으로만 공유됩니다(아빠 그룹에는 보이지 않음).
 
 > Pleos Connect Emulator 의 기본 내비게이션은 지도 바탕(도로·건물)을 그리지 않는 빈 스타일(`connect_empty`)을 사용합니다. 경로선, 회전 안내, 남은 거리·시간은 정상 표시됩니다.
@@ -158,21 +158,28 @@ Pleos Connect Emulator(차량)와 Android 폰 에뮬레이터에서 캡처한 �
 ## 프로젝트 구조
 
 ```
-app/    차량 앱 (Pleos Connect). 앱 전체 픽업 상태: VehicleSession.kt, Gleo 음성 명령: gleo/,
-        허용 방식별 픽업 시작: pickup/PickupRequester.kt, 길 안내·도착: pickup/PickupController.kt
-phone/  폰 앱. 허용 방식에 따른 위치 공유·요청 알림: LocationShareService.kt
-core/   두 앱이 함께 쓰는 데이터 모델과 Firebase 연동 (FirebaseFinderRepository.kt)
+app/    차량 앱 (Pleos Connect). 앱 전체 상태: VehicleSession.kt, Gleo 음성 명령: gleo/,
+        허용 방식별 픽업 시작: pickup/PickupRequester.kt, 한 명 길 안내·도착: pickup/PickupController.kt,
+        여러 명 픽업(경유지 안내): pickup/MultiPickupController.kt, 순서 추천: pickup/RouteRecommender.kt,
+        운전 중 화면 제한: DrivingRestriction.kt, 목적지 공유 알림: DestinationNotifier.kt, 음성 안내: VoiceGuide.kt
+phone/  폰 앱. 허용 방식에 따른 위치 공유·요청 알림: LocationShareService.kt, 그룹 화면: GroupActivity.kt
+core/   두 앱이 함께 쓰는 데이터 모델·시연 데이터·Firebase 연동(FirebaseFinderRepository.kt), 공용 지도(ui/FinderMap.kt)
+docs/   기획서, 화면 캡처(images/)
 apk/    제출용 release APK
 ```
 
 서버 데이터 구조 (구성원별 최신 값만 저장하고 이동 기록은 남기지 않습니다):
 
 ```
-groups/{groupId}/locations/{memberId}                위도, 경도, 갱신 시각
-groups/{groupId}/invites/{memberId}                  초대한 사람, 상태(대기·수락·거절)
-groups/{groupId}/permissions/{ownerId}/{viewerId}    항상 허용 / 일시적 허용 / 끄기
-groups/{groupId}/shareRequests/{ownerId}             요청한 사람, 상태(대기·수락·거절·종료)
-groups/{groupId}/pickups/{memberId}                  운전자, 상태, 남은 거리·시간, 차량 위치, 갱신 시각
+groups/{groupId}/locations/{memberId}                    위도, 경도, 갱신 시각
+groups/{groupId}/vehicleLocations/{vehicleId}            위도, 경도, 지금 운전자, 갱신 시각
+groups/{groupId}/connections/{ownerId}/{otherId}         관계(가족·친구), 초대 상태
+groups/{groupId}/permissions/{ownerId}/{viewerId}        항상 허용 / 일시적 허용 / 끄기
+groups/{groupId}/vehicleShares/{ownerId}/{viewerId}      차량끼리 공유 끝나는 시각
+groups/{groupId}/shareRequests/{ownerId}                 요청한 사람, 상태(대기·수락·거절·종료)
+groups/{groupId}/pickups/{memberId}                      운전자, 상태, 남은 거리·시간, 차량 위치, 내 차례·전체 인원·앞사람, 갱신 시각
+groups/{groupId}/finderGroups/{groupId}                  그룹 이름, 만든 사람, 구성원별 초대 상태·공유 설정
+groups/{groupId}/destinationShares/{groupId}/{shareId}   공유한 목적지, 구성원별 수락, 차량별 남은 거리·시간
 ```
 
 ## 소스에서 빌드하기
