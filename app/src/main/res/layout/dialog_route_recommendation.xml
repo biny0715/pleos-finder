@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 여러 명 픽업 순서 추천: 지금 순서와 추천 순서, 예상 시간 비교 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="48dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="48dp">
+
+    <TextView
+        android:id="@+id/recommendHeadline"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.Pleos.Body" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:background="@drawable/pleos_bg_button_basic"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="지금 순서"
+            android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+        <TextView
+            android:id="@+id/recommendCurrent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="@style/TextAppearance.Pleos.Body" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="추천 순서"
+            android:textAppearance="@style/TextAppearance.Pleos.Label" />
+
+        <TextView
+            android:id="@+id/recommendBetter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="@style/TextAppearance.Pleos.TitleSmall" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/recommendNote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textAppearance="@style/TextAppearance.Pleos.BodySmall" />
+</LinearLayout>

@@ -42,6 +42,7 @@ import com.EOKYEONGBIN.pleosfinder.core.ui.PleosToast
 import com.EOKYEONGBIN.pleosfinder.pickup.MultiPickupView
 import com.EOKYEONGBIN.pleosfinder.pickup.MultiStop
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupState
+import com.EOKYEONGBIN.pleosfinder.pickup.Recommendation
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -174,6 +175,7 @@ class MainActivity : AppCompatActivity() {
         session.onMessage = toast::show
         session.onLocationsChanged = ::renderMap
         session.onDestinationShared = ::showDestinationPrompt
+        session.onRecommendationShown = ::showRouteRecommendation
         render()
     }
 
@@ -182,6 +184,7 @@ class MainActivity : AppCompatActivity() {
         session.onMessage = null
         session.onLocationsChanged = null
         session.onDestinationShared = null
+        session.onRecommendationShown = null
         mapView.onStop()
         super.onStop()
     }
@@ -633,6 +636,7 @@ class MainActivity : AppCompatActivity() {
 
     /** 여러 명 픽업 진행 줄: 다음 사람, 사람별 상태, 다음 사람(또는 최종 목적지)까지 남은 거리·시간 */
     private fun renderMultiPickup(view: MultiPickupView) {
+        if (view.recommendation == null) recommendationDialog?.takeIf { it.isShowing }?.dismiss()
         val riders = view.stops.filter { it.consent != MultiStop.Consent.OFF && it.consent != MultiStop.Consent.DECLINED }
         val picked = riders.count { it.pickedUp }
         val next = view.next
@@ -726,6 +730,33 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private var recommendationDialog: AlertDialog? = null
+
+    /**
+     * 더 빠른 순서 추천 팝업. [추천 순서로 변경]을 눌렀을 때만 바꾸고,
+     * [기존 순서 유지]·닫기는 고른 순서를 그대로 유지하는 정상 선택이다.
+     */
+    private fun showRouteRecommendation(rec: Recommendation) {
+        if (isFinishing) return
+        recommendationDialog?.dismiss()
+        val view = inflater.inflate(R.layout.dialog_route_recommendation, null)
+        view.findViewById<TextView>(R.id.recommendHeadline).text = "지금 순서보다 약 ${rec.savedMinutes}분 빠른 순서가 있어요."
+        view.findViewById<TextView>(R.id.recommendCurrent).text = "${rec.orderText(rec.current)} · 약 ${(rec.currentSeconds + 59) / 60}분"
+        view.findViewById<TextView>(R.id.recommendBetter).text = "${rec.orderText(rec.recommended)} · 약 ${(rec.recommendedSeconds + 59) / 60}분"
+        view.findViewById<TextView>(R.id.recommendNote).text = "실제 도로 기준 예상 시간이에요. 바꾸지 않으면 지금 순서 그대로 안내해요."
+        var answered = false
+        recommendationDialog = AlertDialog.Builder(this)
+            .setTitle("더 빠른 순서 추천")
+            .setView(view)
+            .setPositiveButton("추천 순서로 변경") { _, _ -> answered = true; session.acceptRecommendation() }
+            .setNegativeButton("기존 순서 유지") { _, _ -> answered = true; session.keepOrder() }
+            .setOnDismissListener {
+                // 다른 곳(Gleo 음성 답)에서 이미 정했으면 다시 처리하지 않는다.
+                if (!answered && session.currentRecommendation === rec) session.keepOrder()
+            }
             .show()
     }
 

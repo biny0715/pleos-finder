@@ -61,6 +61,8 @@ data class MultiPickupView(
     val headingToDestination: Boolean,
     val destinationRemainDistanceMeters: Int?,
     val destinationRemainTimeSeconds: Int?,
+    /** 운전자의 답을 기다리는 순서 추천 */
+    val recommendation: Recommendation? = null,
 )
 
 /**
@@ -70,7 +72,8 @@ data class MultiPickupView(
  *   안내하고 한 명을 태울 때마다 남은 경로를 다시 요청한다(순서는 바꾸지 않는다).
  * - 내비의 경유지별 남은 거리·시간을 그 사람의 폰으로 보낸다. 이번 구간 밖의 사람은 앞사람을 태운 뒤 계산한다.
  * - 탑승은 차 50m 안 도착, 내비의 경유지·목적지 도착, 운전자의 '탑승 완료' 중 하나로 판정한다.
- * 더 빠른 순서 추천(2단계)은 아직 없다. NaviHelper 콜백은 바인더 스레드에서 오므로 메인 스레드로 넘겨 처리한다.
+ * 2단계: 모두의 위치가 오면 RouteRecommender 로 더 빠른 순서를 한 번 찾아 onRecommendation 으로 알리고,
+ * 운전자가 수락(acceptRecommendation)할 때만 바꾼다. 거절·무응답이면 고른 순서 그대로다. NaviHelper 콜백은 바인더 스레드에서 오므로 메인 스레드로 넘겨 처리한다.
  */
 class MultiPickupController(
     private val naviHelper: NaviHelper,
@@ -79,6 +82,11 @@ class MultiPickupController(
     private val permissionOf: (Member) -> SharePermission,
     private val onState: (PickupState) -> Unit,
     private val onMessage: (String) -> Unit,
+    /** 차량 현재 위치(순서 추천의 출발지) */
+    private val vehiclePosition: () -> Pair<Double, Double>?,
+    /** 순서 추천을 한 번 계산했을 때. 더 빠른 순서가 없거나 계산하지 못하면 null */
+    private val onRecommendation: (Recommendation?) -> Unit,
+    private val recommender: RouteRecommender = RouteRecommender(),
 ) : NaviHelperEventListener {
 
     private class Stop(val member: Member, val pinned: Boolean, val temporary: Boolean) {
@@ -105,6 +113,14 @@ class MultiPickupController(
     private var lastPublishAt = 0L
     private var destinationRemainDistanceMeters: Int? = null
     private var destinationRemainTimeSeconds: Int? = null
+
+    /** 2단계 순서 추천: 한 번만 계산하고, 운전자가 수락할 때만 적용한다. */
+    private var pinnedId: String? = null
+    private var recommendationState = RecommendationState.NOT_CHECKED
+    var recommendation: Recommendation? = null
+        private set
+
+    private enum class RecommendationState { NOT_CHECKED, CHECKING, DONE }
 
     /**
      * 경로 요청을 잠깐 모아서 한 번만 보낸다. 시작할 때 여러 사람의 위치가 거의 동시에 도착하는데,
@@ -133,6 +149,7 @@ class MultiPickupController(
         val ordered = members.sortedBy { if (it.id == pinnedId) 0 else 1 }
         startedAt = System.currentTimeMillis()
         destination = finalDestination
+        this.pinnedId = pinnedId
         for (member in ordered) {
             val permission = permissionOf(member)
             val stop = Stop(member, pinned = member.id == pinnedId, temporary = permission == SharePermission.TEMPORARY)
@@ -154,6 +171,65 @@ class MultiPickupController(
         }
         mainHandler.post(pollVehicleLocation)
         route()
+        checkRecommendation()
+        render()
+    }
+
+    /**
+     * 추천 순서로 바꾼다(운전자가 수락했을 때만). 이미 태운 사람이 있거나 추천이 없으면 false.
+     * 고정한 사람은 추천에서도 맨 앞이다.
+     */
+    fun acceptRecommendation(): Boolean {
+        val rec = recommendation ?: return false
+        recommendation = null
+        if (stops.any { it.pickedUp }) return false
+        val order = rec.recommended.map { it.id }
+        stops.sortBy { stop -> order.indexOf(stop.member.id).let { if (it < 0) Int.MAX_VALUE else it } }
+        onMessage("추천 순서로 바꿨어요: ${rec.orderText(rec.recommended)}")
+        route(force = true)
+        render()
+        return true
+    }
+
+    /** 기존 순서를 유지한다(거절·무응답). 오류가 아니라 정상 선택이다. */
+    fun keepOrder(): Boolean {
+        if (recommendation == null) return false
+        recommendation = null
+        render()
+        return true
+    }
+
+    /**
+     * 고른 사람이 모두 위치를 보내고(일시적 허용은 수락 후) 아직 아무도 타지 않았을 때 한 번만 계산한다.
+     * 승인 전 위치는 쓰지 않는다. 계산하는 동안에도 고른 순서로 안내는 이미 시작되어 있다.
+     */
+    private fun checkRecommendation() {
+        if (!isActive || recommendationState != RecommendationState.NOT_CHECKED) return
+        if (stops.any { it.consent == MultiStop.Consent.WAITING } || stops.any { it.pickedUp }) return
+        val riders = stops.filter { it.consent == MultiStop.Consent.READY }
+        if (riders.size < 2 || riders.any { !usable(it) }) {
+            if (riders.size < 2 && stops.none { it.consent == MultiStop.Consent.WAITING }) finishRecommendation(null)
+            return
+        }
+        val origin = vehicleLatitude?.let { lat -> vehicleLongitude?.let { lat to it } } ?: vehiclePosition() ?: return
+        recommendationState = RecommendationState.CHECKING
+        val startedFor = startedAt
+        recommender.recommend(
+            origin = origin,
+            stops = riders.map { it.member to (it.location!!.latitude to it.location!!.longitude) },
+            pinnedId = pinnedId,
+            destination = destination?.let { it.latitude to it.longitude },
+        ) { result ->
+            // 그사이 픽업을 끝냈거나 새로 시작했으면 버린다.
+            if (!isActive || startedFor != startedAt || stops.any { it.pickedUp }) return@recommend
+            finishRecommendation(result)
+        }
+    }
+
+    private fun finishRecommendation(result: Recommendation?) {
+        recommendationState = RecommendationState.DONE
+        recommendation = result
+        onRecommendation(result)
         render()
     }
 
@@ -175,6 +251,9 @@ class MultiPickupController(
     }
 
     private fun reset() {
+        recommendationState = RecommendationState.NOT_CHECKED
+        recommendation = null
+        pinnedId = null
         mainHandler.removeCallbacks(routeLater)
         pendingForce = false
         subscriptions.forEach { it.cancel() }
@@ -203,11 +282,12 @@ class MultiPickupController(
                 stop.consent = MultiStop.Consent.READY
                 onMessage("${stop.member.name.iGa} 위치 공유를 수락했어요. 원래 순서에 넣어 안내해요.")
                 route()
+                checkRecommendation()
             }
             ShareRequest.State.DECLINED -> if (stop.consent == MultiStop.Consent.WAITING) {
                 stop.consent = MultiStop.Consent.DECLINED
                 onMessage("${stop.member.name.iGa} 위치 공유를 거절해 이번 픽업에서 빠져요.")
-                finishIfDone()
+                if (!finishIfDone()) checkRecommendation()
             }
             ShareRequest.State.PENDING, ShareRequest.State.ENDED -> Unit
         }
@@ -228,6 +308,7 @@ class MultiPickupController(
             // 위치가 늦게 도착한 사람을 경로에 넣는다.
             route()
         }
+        checkRecommendation()
         render()
     }
 
@@ -410,6 +491,7 @@ class MultiPickupController(
             headingToDestination = legEndsAtDestination && leg.isEmpty(),
             destinationRemainDistanceMeters = destinationRemainDistanceMeters,
             destinationRemainTimeSeconds = destinationRemainTimeSeconds,
+            recommendation = recommendation,
         )
         onState(PickupState.Multi(view))
     }

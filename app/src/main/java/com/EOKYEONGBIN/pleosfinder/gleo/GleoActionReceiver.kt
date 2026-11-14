@@ -25,7 +25,9 @@ import java.util.Locale
 
 /**
  * Gleo AI 음성 명령을 받는다(assets/schema.json 의 component = "service"). Gleo 함수는 최대 3개라 다음처럼 묶었다.
- * - PICKUP(action = start | stop | status, memberName): "와이프 픽업 가줘", "픽업 그만", "아들 어디쯤이야?"
+ * - PICKUP(action = start | stop | status | accept_order | keep_order, memberName, memberNames, pinnedName, destinationName):
+ *   "와이프 픽업 가줘", "픽업 그만", "아들 어디쯤이야?", "와이프랑 아들 태우고 집에 가자"(여러 명 → 더 빠른 순서를 음성으로 추천),
+ *   "응 바꿔줘"(accept_order), "그대로 가자"(keep_order)
  * - SHARE_LOCATION(targetName, shareType, durationMinutes, untilEndOfToday): "박지훈한테 1시간만 위치 공유해줘", "강릉 여행 그룹에 2시간만 공유해줘",
  *   "강릉 여행 그룹에 지금 목적지 공유해줘"(shareType = current_destination), "강릉 여행 그룹에 여기로 모이자고 해줘"(car_position)
  * - STOP_LOCATION_SHARING(targetName, category): "친구 목록 중에 위치 공유된 것 모두 꺼줘"
@@ -42,8 +44,8 @@ class GleoActionReceiver : BroadcastReceiver() {
         val pending = goAsync()
         // 앱이 Gleo 호출로 막 시작됐다면 서버에서 연결 정보를 받을 때까지 기다린다(Gleo 제한 7초 안).
         session.whenReady(READY_TIMEOUT_MS) {
+            val reply = Reply(context, action) { pending.finish() }
             try {
-                val reply = Reply(context, action)
                 when (action) {
                     PICKUP -> pickup(reply, session, params)
                     SHARE_LOCATION -> shareLocation(reply, session, params)
@@ -51,14 +53,20 @@ class GleoActionReceiver : BroadcastReceiver() {
                     else -> Log.w(TAG, "unknown action $action")
                 }
             } finally {
-                pending.finish()
+                // 순서 추천처럼 답을 나중에 보내는 경우에는 답을 보낼 때 끝낸다.
+                if (!reply.deferred) pending.finish()
             }
         }
     }
 
-    private class Reply(val context: Context, val functionName: String) {
-        operator fun invoke(status: Status, message: String, data: JSONArray? = null) =
+    private class Reply(val context: Context, val functionName: String, private val onDone: () -> Unit) {
+        /** true 면 답을 나중에 보낸다(보낼 때 브로드캐스트 처리를 끝낸다). */
+        var deferred = false
+
+        operator fun invoke(status: Status, message: String, data: JSONArray? = null) {
             GleoResponder.respond(context, functionName, status, message, data)
+            if (deferred) onDone()
+        }
     }
 
     // ---- PICKUP ----
@@ -67,8 +75,84 @@ class GleoActionReceiver : BroadcastReceiver() {
         when (params.optString(PARAM_ACTION, "start").lowercase()) {
             "stop" -> stopPickup(reply, session)
             "status" -> pickupStatus(reply, session, params)
-            else -> startPickup(reply, session, params)
+            ACTION_ACCEPT_ORDER -> acceptOrder(reply, session)
+            ACTION_KEEP_ORDER -> keepOrder(reply, session)
+            else -> if (spokenNames(params).size >= 2) startMultiPickup(reply, session, params) else startPickup(reply, session, params)
         }
+    }
+
+    // ---- 여러 명 픽업과 순서 추천(스마트 멀티 픽업 2·3단계) ----
+
+    /** memberNames 배열, 또는 쉼표로 이은 memberName("와이프, 아들") */
+    private fun spokenNames(params: JSONObject): List<String> {
+        val array = params.optJSONArray(PARAM_MEMBER_NAMES)
+        val names = if (array != null) (0 until array.length()).map { array.optString(it) }
+        else params.optString(PARAM_MEMBER_NAME).split(",", "랑", "와 ", "and")
+        return names.map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
+    /**
+     * "파인더, 와이프랑 아들 태우고 집에 가자" → 말한 순서대로 여러 명 픽업을 시작하고(고른 순서가 기본),
+     * 더 빠른 순서가 있으면 Gleo 가 음성으로 추천하며 순서를 바꿀지 되묻는다(asking).
+     * 운전자의 답은 accept_order(바꿔줘) / keep_order(그대로 가자)로 다시 들어온다. 답이 없으면 고른 순서 그대로다.
+     */
+    private fun startMultiPickup(reply: Reply, session: VehicleSession, params: JSONObject) {
+        val candidates = session.pickupCandidates()
+        val members = mutableListOf<Member>()
+        for (name in spokenNames(params)) {
+            val member = resolvePerson(reply, candidates, name, "Who should I pick up?") ?: return
+            if (member !in members) members += member
+        }
+        val pinnedName = params.optString(PARAM_PINNED_NAME).trim()
+        val pinned = if (pinnedName.isEmpty()) null else resolvePerson(reply, members, pinnedName, "Who should be picked up first?") ?: return
+        val destination = savedPlace(params.optString(PARAM_DESTINATION_NAME))
+        when {
+            session.isPickupBusy -> reply(Status.FAIL, "Another pickup is in progress. Stop it first.")
+            !session.naviConnected -> reply(Status.FAIL, "Navigation is not ready yet. Please try again in a moment.")
+            else -> {
+                session.startMultiPickup(members, pinned?.id, destination)
+                val order = members.sortedBy { if (it.id == pinned?.id) 0 else 1 }.joinToString(" → ") { it.name }
+                val to = destination?.let { ", then to ${it.name}" } ?: ""
+                reply.deferred = true
+                session.awaitRecommendation(RECOMMEND_WAIT_MS) { rec ->
+                    if (rec == null) {
+                        reply(Status.SUCCESS, "Started navigation to pick up $order in that order$to.")
+                    } else {
+                        reply(
+                            Status.ASKING,
+                            "Started navigation in your order: $order$to. ${session.recommendationSpeech(rec)} " +
+                                "(${rec.orderText(rec.recommended)}, about ${rec.savedMinutes} minutes faster) Say yes to change the order, or keep the current order.",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun acceptOrder(reply: Reply, session: VehicleSession) {
+        val rec = session.currentRecommendation
+        if (rec != null && session.acceptRecommendation()) {
+            reply(Status.SUCCESS, "Changed to the faster order: ${rec.orderText(rec.recommended)}. Navigation has been updated.")
+        } else {
+            reply(Status.FAIL, "There is no order recommendation to apply right now.")
+        }
+    }
+
+    private fun keepOrder(reply: Reply, session: VehicleSession) {
+        session.keepOrder()
+        reply(Status.SUCCESS, "Okay, keeping your order.")
+    }
+
+    /** "집", "우리 집", "home" → 우리 집, "강릉", "경포" → 강릉 경포해변 */
+    private fun savedPlace(spokenRaw: String): SharePlace? {
+        val spoken = spokenRaw.trim().lowercase()
+        if (spoken.isEmpty()) return null
+        val place = when {
+            spoken.contains("집") || spoken.contains("home") -> DemoDirectory.HOME
+            spoken.contains("강릉") || spoken.contains("경포") || spoken.contains("gangneung") -> DemoDirectory.GANGNEUNG
+            else -> DemoDirectory.savedPlaces.firstOrNull { it.name.lowercase().contains(spoken) }
+        } ?: return null
+        return SharePlace(SharePlace.Kind.SAVED, place.name, place.address, place.latitude, place.longitude)
     }
 
     private fun startPickup(reply: Reply, session: VehicleSession, params: JSONObject) {
@@ -101,6 +185,7 @@ class GleoActionReceiver : BroadcastReceiver() {
         val message = when (val state = session.pickupState) {
             is PickupState.OnTheWay -> "Stopped the pickup for ${state.target.name} and ended navigation."
             is PickupState.WaitingForAcceptance -> "Cancelled the location sharing request to ${state.target.name}."
+            is PickupState.Multi -> "Stopped the multi-person pickup and told everyone who has not been picked up yet."
             else -> "There is no pickup in progress."
         }
         session.stopPickup()
@@ -319,6 +404,13 @@ class GleoActionReceiver : BroadcastReceiver() {
         private const val PARAM_TARGET_NAME = "targetName"
         private const val PARAM_DURATION_MINUTES = "durationMinutes"
         private const val PARAM_UNTIL_END_OF_TODAY = "untilEndOfToday"
+        private const val PARAM_MEMBER_NAMES = "memberNames"
+        private const val PARAM_PINNED_NAME = "pinnedName"
+        private const val PARAM_DESTINATION_NAME = "destinationName"
+        private const val ACTION_ACCEPT_ORDER = "accept_order"
+        private const val ACTION_KEEP_ORDER = "keep_order"
+        /** 순서 추천을 기다리는 시간. Gleo 응답 제한(약 20초)과 브로드캐스트 처리 제한 안에서 답한다. */
+        private const val RECOMMEND_WAIT_MS = 6_000L
         private const val PARAM_SHARE_TYPE = "shareType"
         private const val SHARE_TYPE_LOCATION = "location"
         private const val SHARE_TYPE_DESTINATION = "current_destination"

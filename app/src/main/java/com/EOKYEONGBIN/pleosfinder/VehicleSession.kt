@@ -38,6 +38,7 @@ import com.EOKYEONGBIN.pleosfinder.pickup.MultiStop
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupController
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupRequester
 import com.EOKYEONGBIN.pleosfinder.pickup.PickupState
+import com.EOKYEONGBIN.pleosfinder.pickup.Recommendation
 import com.EOKYEONGBIN.pleosfinder.pickup.RepositoryMemberLocationSource
 
 /** 목록 한 줄에 그릴 상대(가족·친구). 아이콘은 hasFinderPhone(사람)과 vehicles(차량)로 정한다. */
@@ -301,7 +302,11 @@ class VehicleSession(private val context: Context) {
             onFinished = { pickupRequester.endShare(it) },
         )
         pickupRequester = PickupRequester(repository, pickupController, me, ::onPickupState, ::showMessage)
-        multiPickup = MultiPickupController(naviHelper, repository, me, ::permissionOf, ::onPickupState, ::showMessage)
+        multiPickup = MultiPickupController(
+            naviHelper, repository, me, ::permissionOf, ::onPickupState, ::showMessage,
+            vehiclePosition = { myPosition },
+            onRecommendation = ::onRecommendation,
+        )
         pickupState = PickupState.Idle
     }
 
@@ -517,6 +522,60 @@ class VehicleSession(private val context: Context) {
 
     /** 여러 명 픽업에서 다음 사람을 태웠다고 운전자가 확인한다. */
     fun confirmNextPickedUp() = multiPickup.confirmNextPickedUp()
+
+    // ---- 스마트 멀티 픽업 2·3단계: 순서 추천 ----
+
+    /** 화면이 열려 있으면 추천 팝업을 띄운다. */
+    var onRecommendationShown: ((Recommendation) -> Unit)? = null
+
+    /** Gleo 로 시작한 여러 명 픽업이 추천 결과를 기다리는 중(결과를 Gleo 음성 답으로 돌려준다) */
+    private var gleoRecommendationWaiter: ((Recommendation?) -> Unit)? = null
+
+    val currentRecommendation: Recommendation? get() = multiPickup.recommendation
+
+    /** 순서 추천 결과를 기다린다. timeoutMs 안에 계산되지 않으면 null(추천 없이 진행)로 알린다. */
+    fun awaitRecommendation(timeoutMs: Long, callback: (Recommendation?) -> Unit) {
+        val waiter = object : (Recommendation?) -> Unit {
+            var done = false
+            override fun invoke(result: Recommendation?) {
+                if (done) return
+                done = true
+                gleoRecommendationWaiter = null
+                callback(result)
+            }
+        }
+        gleoRecommendationWaiter = waiter
+        mainHandler.postDelayed({ waiter(multiPickup.recommendation) }, timeoutMs)
+    }
+
+    fun acceptRecommendation(): Boolean = multiPickup.acceptRecommendation()
+
+    fun keepOrder(): Boolean = multiPickup.keepOrder().also { if (it) showMessage("기존 순서를 유지해요.") }
+
+    private fun onRecommendation(result: Recommendation?) {
+        val waiter = gleoRecommendationWaiter
+        if (waiter != null) {
+            // Gleo 로 시작했으면 Gleo 가 음성으로 추천하고, 화면 팝업도 함께 띄운다.
+            waiter(result)
+            if (result != null) onRecommendationShown?.invoke(result)
+            return
+        }
+        if (result == null) return
+        // 화면에서 시작했으면 팝업과 함께 음성으로 추천한다.
+        onRecommendationShown?.invoke(result)
+        voice.speak(recommendationSpeech(result))
+    }
+
+    /** "아들을 먼저 태우면 약 8분 빠릅니다. 순서를 바꿀까요?" */
+    fun recommendationSpeech(rec: Recommendation): String {
+        val first = rec.recommended.first().name
+        val changedFirst = rec.recommended.first() != rec.current.first()
+        val lead = if (changedFirst) "${first.eulReul} 먼저 태우면" else "${rec.orderText(rec.recommended)} 순서로 가면"
+        return "$lead 약 ${rec.savedMinutes}분 빠릅니다. 순서를 바꿀까요?"
+    }
+
+    /** 화면에서 시작한 추천을 읽어 주는 음성 안내(차량의 기본 음성 합성 엔진) */
+    private val voice by lazy { VoiceGuide(context) }
 
     fun startPickup(member: Member) {
         // 픽업 안내가 그룹 목적지 안내를 대신한다.

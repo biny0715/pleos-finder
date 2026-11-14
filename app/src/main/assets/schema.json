@@ -2,13 +2,13 @@
   "packageName": "com.EOKYEONGBIN.pleosfinder",
   "appDescription": "A family and friends location sharing app that guides the car to people for pickups, shares car locations with people or groups for a limited time, and shares a destination with a group so everyone's navigation goes to the same place.",
   "invokeWord": "파인더",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "actionCalls": [
     {
       "type": "function",
       "function": {
         "name": "PICKUP",
-        "description": "Start or stop a pickup by navigating to a family member's or friend's live location, or tell how far the person being picked up is.",
+        "description": "Start or stop a pickup by navigating to a family member's or friend's live location, tell how far the person is, or pick up several people in the order the driver says and then go to a final destination. When a faster order exists, the app asks whether to change it; the driver's answer is sent back with action accept_order or keep_order.",
         "parameters": {
           "type": "object",
           "properties": {
@@ -17,13 +17,30 @@
               "enum": [
                 "start",
                 "stop",
-                "status"
+                "status",
+                "accept_order",
+                "keep_order"
               ],
-              "description": "Whether to start a pickup, stop the current pickup, or report the person's location and distance."
+              "description": "start / stop a pickup, status to report the person's distance, accept_order when the driver agrees to the recommended faster pickup order, keep_order when the driver wants to keep the original order."
             },
             "memberName": {
               "type": "string",
               "description": "Name or relationship of the person, as the driver calls them in the family or friend list."
+            },
+            "memberNames": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Names or relationships of several people to pick up, in the order the driver said them."
+            },
+            "pinnedName": {
+              "type": "string",
+              "description": "The person the driver wants to pick up first no matter what."
+            },
+            "destinationName": {
+              "type": "string",
+              "description": "Final destination after picking everyone up, such as home or Gangneung."
             }
           },
           "required": [
