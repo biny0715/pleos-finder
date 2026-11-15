@@ -177,6 +177,8 @@ class MainActivity : AppCompatActivity() {
         session.onDestinationShared = ::showDestinationPrompt
         session.onRecommendationShown = ::showRouteRecommendation
         render()
+        // 내비가 앞에 떠 있는 동안 추천이 도착했으면, Finder로 돌아왔을 때 아직 답하지 않은 추천을 띄운다.
+        session.currentRecommendation?.let { if (recommendationDialog?.isShowing != true) showRouteRecommendation(it) }
     }
 
     override fun onStop() {

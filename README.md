@@ -8,6 +8,23 @@
 - 플랫폼: Pleos Connect (차량 앱) + Android (폰 앱)
 - 기획서: [docs/기획서.md](docs/기획서.md)
 
+## 시연 영상
+
+두 에뮬레이터에서 **같은 시간에** 화면 녹화한 영상입니다(약 1분 30초, 소리 없음). 이미지를 누르면 영상 파일이 열립니다.
+
+| 차량 앱 (아빠, Pleos Connect Emulator) | 폰 앱 (판교역의 아들) |
+|---|---|
+| [![차량 시연 영상](docs/videos/demo-vehicle-poster.jpg)](docs/videos/demo-vehicle.mp4) | [<img src="docs/videos/demo-phone-poster.jpg" alt="폰 시연 영상" width="220">](docs/videos/demo-phone.mp4) |
+| [demo-vehicle.mp4](docs/videos/demo-vehicle.mp4) (1280 × 720, 16.8MB) | [demo-phone.mp4](docs/videos/demo-phone.mp4) (540 × 1200, 1.6MB) |
+
+영상 순서:
+1. 차량 메인 화면에서 **아들 → 픽업**: 차량 내비가 아들 위치로 안내를 시작하고, Finder에 남은 거리·시간이 표시됩니다. 폰에는 "아빠가 오고 있어요"가 뜹니다.
+2. **여러 명 픽업**: 김민수 → 와이프 → 아들 순서로 고르고 최종 목적지를 **우리 집**으로 정하면, 경유지를 포함한 경로로 안내가 시작됩니다.
+3. 실제 도로 이동시간으로 순서를 비교해 **더 빠른 순서 추천** 팝업이 뜹니다(와이프 → 아들 → 김민수).
+4. **[추천 순서로 변경]**: 내비 경로가 다시 잡히고, 폰의 아들 화면이 "3명 중 2번째 · 와이프 픽업 후 내 차례"로 바뀝니다.
+
+> 추천을 알려 주는 음성 안내(TextToSpeech)는 에뮬레이터에 음성 합성 엔진이 없어 영상에서는 들리지 않습니다. 실차에서는 차량의 기본 음성 엔진으로 읽어 줍니다.
+
 ## 화면
 
 Pleos Connect Emulator(차량)와 Android 폰 에뮬레이터에서 캡처한 화면입니다. 사람·차량 이름은 시연용 데이터입니다.
@@ -118,8 +135,8 @@ Pleos Connect Emulator(차량)와 Android 폰 에뮬레이터에서 캡처한 �
 
 | 항목 | 버전 |
 |---|---|
-| 차량 | Pleos Connect Emulator v2.1.0 (Android 14, API 34, arm64) |
-| 폰 | Android Emulator, Medium Phone API 37 (Google Play) |
+| 차량 | Pleos Connect Emulator v2.1.0 (Android 14, API 34, arm64), 화면 2560 × 1440 · 160dpi (Finder는 오른쪽 앱 영역에 표시) |
+| 폰 | Android Emulator, Medium Phone API 37 (Google Play), 화면 1080 × 2400 |
 | 개발 도구 | Android Studio 2026.2.1, Kotlin, Android Gradle Plugin 9.4.1 |
 | Pleos SDK | NaviHelper 3.0.5 |
 | 서버 | Firebase Realtime Database (asia-southeast1) |
