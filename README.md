@@ -10,11 +10,13 @@
 
 ## 시연 영상
 
+[![플레오스 Finder 시연 영상 (YouTube)](https://img.youtube.com/vi/lRfYyH9vRng/maxresdefault.jpg)](https://youtu.be/lRfYyH9vRng)
+
+**▶ YouTube에서 보기: https://youtu.be/lRfYyH9vRng**
+
 두 에뮬레이터에서 **같은 시간에** 화면 녹화한 영상입니다(약 1분 30초, 소리 없음). 왼쪽은 차량 앱(아빠, Pleos Connect Emulator의 Finder·내비 영역), 오른쪽은 판교역에서 기다리는 아들의 폰 앱입니다.
 
-![시연 영상: 차량 앱과 폰 앱 동시 녹화](docs/videos/demo.gif)
-
-원본 영상: [차량 demo-vehicle.mp4](docs/videos/demo-vehicle.mp4) (1280 × 720, 전체 화면) · [폰 demo-phone.mp4](docs/videos/demo-phone.mp4) (540 × 1200)
+원본 녹화 파일: [차량 demo-vehicle.mp4](docs/videos/demo-vehicle.mp4) (1280 × 720, 전체 화면) · [폰 demo-phone.mp4](docs/videos/demo-phone.mp4) (540 × 1200)
 
 영상 순서:
 1. 차량 메인 화면에서 **아들 → 픽업**: 차량 내비가 아들 위치로 안내를 시작하고, Finder에 남은 거리·시간이 표시됩니다. 폰에는 "아빠가 오고 있어요"가 뜹니다.
